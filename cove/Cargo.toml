@@ -2,6 +2,11 @@
 name = "cove"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/immodestproposal/cove"
+description = """
+Code Of Varying Elegance (COVE): a collection of miscellaneous utility functions.
+"""
 
 [dependencies]
 cove-num = "0"

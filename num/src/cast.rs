@@ -282,6 +282,7 @@ macro_rules! cast {
                         // use its MAX. This logic cannot be used in general for saturation but
                         // holds for all types actually fed to this macro. Note that the branch
                         // will be optimized away for unsigned source types, at least in release.
+                        #[allow(unused_comparisons)]
                         match self < 0 {
                             true => <$to>::MIN,
                             false => <$to>::MAX

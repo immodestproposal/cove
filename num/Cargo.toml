@@ -2,5 +2,10 @@
 name = "cove-num"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/immodestproposal/cove"
+description = """
+A collection of minor utilities for numbers to support generic programming and casting.
+"""
 
 [dependencies]

@@ -1,5 +1,9 @@
-[workspace]
-members = [
-    "cove",
-    "num"
-]
+[package]
+name = "cove"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/immodestproposal/cove"
+description = """
+Casts Of Varying Ease (COVE): extensions traits for casting numerical types
+"""

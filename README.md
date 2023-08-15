@@ -1,2 +1,2 @@
 # cove
-Code of Varying Elegance (COVE)
+Casts of Varying Elegance (COVE)

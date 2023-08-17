@@ -5,5 +5,5 @@ edition = "2021"
 license = "MIT"
 repository = "https://github.com/immodestproposal/cove"
 description = """
-Casts Of Varying Elegance (COVE): extensions traits for casting numerical types
+Casts Of Varying Elegance (COVE): extension traits for casting numerical types
 """

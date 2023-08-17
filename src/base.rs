@@ -1,8 +1,7 @@
 //! This module provides the base traits needed to support casting through the interface traits
-//! [`Cast`](crate::Cast) / [`LossyCast`](crate::LossyCast) / [`LosslessCast`](crate::LosslessCast)
-//! / [`SaturatingCast`](crate::SaturatingCast). If you only need to use existing casting support
-//! these base traits will be irrelevant to you, but they are important for extending casting
-//! support to new types.
+//! [`Cast`](crate::Cast) / [`LossyCast`](crate::LossyCast) / [`LosslessCast`](crate::LosslessCast).
+//! If you only need to use existing casting support these base traits will be irrelevant to you,
+//! but they are important for extending casting support to new types.
 //!
 //! Casting functionality is split between the base and interface traits because the base traits
 //! are more flexible to implement while the interface traits are more ergonomic to use. Without
@@ -59,13 +58,4 @@ pub trait LosslessCastImpl<T> {
     /// details and invariants to uphold. Also note the expectation that this operation should be
     /// cheap at runtime, ideally free.
     fn lossless_cast_impl(self) -> T;
-}
-
-/// Provides the base trait for [`SaturatingCast`](crate::SaturatingCast); implement this to
-/// extend [`SaturatingCast`](crate::SaturatingCast) to new types
-pub trait SaturatingCastImpl<T> {
-    /// Casts this integer type to type `T`, saturating to the closest possible value for `T`. See
-    /// [`SaturatingCast::saturating_cast`](crate::SaturatingCast::saturating_cast) for details and
-    /// invariants to uphold.
-    fn saturating_cast_impl(self) -> T;
 }

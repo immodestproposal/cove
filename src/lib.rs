@@ -82,6 +82,11 @@
 //! conversions between integer types and floating point types. This crate supports casting between
 //! these types.
 //!
+//! ### Saturate
+//! [`Cast`] supports saturating its result through the [`Saturate`] trait, which is defined by
+//! default for integer to integer conversions. This provides a convenient yet explicit mechanism
+//! for casting to the closest target value.
+//!
 //! ### NonZero*
 //! Built-in support for casting to and from the std::num::NonZero* family is planned but not yet
 //! implemented. It may be implemented externally by extending the base casting traits in

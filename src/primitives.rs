@@ -1,7 +1,7 @@
 //! This module provides built-in implementation of the casting traits for primitive types
 
-use crate::cast::{Cast, LossyCast, LosslessCast, SaturatingCast, CastError};
-use crate::base::{CastImpl, LossyCastImpl, LosslessCastImpl, SaturatingCastImpl};
+use crate::cast::{Cast, LossyCast, LosslessCast, Saturate, CastError};
+use crate::base::{CastImpl, LossyCastImpl, LosslessCastImpl};
 
 macro_rules! cast {
     ($($num:ty),+) => {
@@ -9,7 +9,6 @@ macro_rules! cast {
             impl Cast for $num {}
             impl LossyCast for $num {}
             impl LosslessCast for $num {}
-            impl SaturatingCast for $num {}
         )*
 
         // All casts can be lossy, so generate the LossyCastImpls in n-squared fashion
@@ -41,20 +40,23 @@ macro_rules! cast {
                 }
             }
 
-            impl SaturatingCastImpl<$to> for $from {
-                fn saturating_cast_impl(self) -> $to {
-                    // Attempt the cast
-                    self.try_into().unwrap_or_else(|_| {
-                        // Cast failed; if this is less than 0 use the target's MIN, otherwise
-                        // use its MAX. This logic cannot be used in general for saturation but
-                        // holds for all types actually fed to this macro. Note that the branch
-                        // will be optimized away for unsigned source types, at least in release.
-                        #[allow(unused_comparisons)]
-                        match self < 0 {
-                            true => <$to>::MIN,
-                            false => <$to>::MAX
-                        }
-                    })
+            impl Saturate<$to> for CastError<$from, $to> {
+                fn saturate(self) -> $to {
+                    // Cast failed; if this is less than 0 use the target's MIN, otherwise
+                    // use its MAX. This logic cannot be used in general for saturation but
+                    // holds for all types actually fed to this macro. Note that the branch
+                    // will be optimized away for unsigned source types, at least in release.
+                    #[allow(unused_comparisons)]
+                    match self.from < 0 {
+                        true => <$to>::MIN,
+                        false => <$to>::MAX
+                    }
+                }
+            }
+
+            impl Saturate<$to> for Result<$to, CastError<$from, $to>> {
+                fn saturate(self) -> $to {
+                    self.unwrap_or_else(|error| error.saturate())
                 }
             }
         )*

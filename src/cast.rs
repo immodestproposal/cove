@@ -1,5 +1,5 @@
 
-use crate::base::{CastImpl, LossyCastImpl, LosslessCastImpl, SaturatingCastImpl};
+use crate::base::{CastImpl, LossyCastImpl, LosslessCastImpl};
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -84,7 +84,7 @@ pub trait LossyCast {
 /// compile. So where [`From`]/[`Into`] are most concerned with cross-platform portability,
 /// `LosslessCast` is more interested in providing casts on the target platform. Be aware of this
 /// tradeoff when considering which mechanism to use. As a rule of thumb, if you have concrete types
-/// of fixed size you should probably favor [`From`/`Into`].
+/// of fixed size you should probably favor [`From`]/[`Into`].
 pub trait LosslessCast {
     /// Casts this numerical type to type `T` in a fashion guaranteed to be lossless on the target
     /// platform. Be advised that this may not compile on a different target platform. Depending on
@@ -139,39 +139,40 @@ pub trait LosslessCast {
     }
 }
 
-/// Extension trait for casting between integer; otherwise-lossy casts saturate to the target
+/// Extension trait for saturating an integer to a target type, generally applied after a
+/// [`Cast::cast`]
 ///
-/// This is either lossless or else it saturates to the target type's MIN or MAX, whichever is
-/// closest to the source. This is not provided for floating point types due to ambiguity in
-/// semantics (e.g., what does it mean to saturate NaN to an integer?); consider using an alternate
-/// cast for floats, such as [`LossyCast`].
-pub trait SaturatingCast {
-    /// Casts this integer type to type `T`, yielding the closest possible value for `T`.
-    /// Concretely, if self < T::MIN this will return T::MIN; if self > T::MAX this will return
-    /// T::MAX, and otherwise this will return the same value as `self` but as type `T`. Depending
-    /// on the usage, it may be necessary to disambiguate the target type.
+/// When applied to a cast that was lossless this will simply return the casted value. If lossy,
+/// it will return the target type's MIN or MAX, whichever is closest to the source value. This
+/// is provided for CastError<F, T> and Result<T, CastError<F, T>> for integer types. It is not
+/// provided for floating point types due to ambiguity in semantics (e.g., what does it mean to
+/// saturate NaN to an integer?); consider using an alternate cast for floats, such as
+/// [`LossyCast`].
+pub trait Saturate<T> {
+    /// Called on a CastError<F, T> or Result<T, CastError<F, T>> to yield the closest possible
+    /// value of type `T` to the original source value. Concretely, if source < T::MIN this will
+    /// return T::MIN; if source > T::MAX this will return T::MAX, and otherwise this will return
+    /// the source value but as type `T`.
     ///
     /// # Examples
     /// ```
-    /// use cove::SaturatingCast;
+    /// use cove::{Cast, Saturate};
     ///
-    /// // Call a function `foo` via saturating casts; no type disambiguation required in this case
-    /// fn foo(x: u8) -> u8 {x}
-    /// assert_eq!(foo(7u32.saturating_cast()), 7u8);
-    /// assert_eq!(foo(300u32.saturating_cast()), u8::MAX);
+    /// // Saturating after a lossless cast just yields the original value
+    /// assert_eq!((-3i32).cast::<i8>().saturate(), -3);
     ///
-    /// // Explicit disambiguation via turbofish required in this case
-    /// assert_eq!(7u32.saturating_cast::<u8>(), 7u8);
-    /// assert_eq!(300u32.saturating_cast::<u8>(), u8::MAX);
-    ///
-    /// // Cast signed to unsigned
-    /// assert_eq!(6i8.saturating_cast::<u32>(), 6u32);
-    /// assert_eq!((-6i8).saturating_cast::<u32>(), u32::MIN);
-    ///
+    /// // Saturating after a lossy cast yields the MIN or MAX, as appropriate
+    /// assert_eq!((-3i32).cast::<u8>().saturate(), u8::MIN);
+    /// assert_eq!(300u16.cast::<u8>().saturate(), u8::MAX);
     /// ```
-    fn saturating_cast<T>(self) -> T where Self: Sized + SaturatingCastImpl<T> {
-        self.saturating_cast_impl()
-    }
+    ///
+    /// ```compile_fail
+    /// use cove::{Cast, Saturate};
+    ///
+    /// // Attempting to saturate a floating point cast is a compile error; not defined
+    /// let _fail = f32::NAN.cast::<u16>().saturate();
+    /// ```
+    fn saturate(self) -> T;
 }
 
 /// Indicates that a cast between numeric types lost data

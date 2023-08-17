@@ -1,6 +1,6 @@
 //! This module provides built-in implementation of the casting traits for primitive types
 
-use crate::cast::{Cast, LossyCast, LosslessCast, Saturate, CastError};
+use crate::cast::{Accept, Assume, Cast, LossyCast, LosslessCast, Saturate, CastError};
 use crate::base::{CastImpl, LossyCastImpl, LosslessCastImpl};
 
 macro_rules! cast {
@@ -20,6 +20,28 @@ macro_rules! cast {
             impl LossyCastImpl<$to> for $from {
                 fn lossy_cast_impl(self) -> $to {
                     self as $to
+                }
+            }
+
+            impl Accept<$to> for Result<$to, CastError<$from, $to>> {
+                fn accept(self) -> $to {
+                    self.unwrap_or_else(|error| error.to)
+                }
+            }
+
+            impl Assume<$to> for Result<$to, CastError<$from, $to>> {
+                fn assume(self) -> $to {
+                    self.unwrap_or_else(|error| {
+                        // Should not arrive here; panic in a debug build
+                        debug_assert!(
+                            false,
+                            "Lossy cast was assumed to be lossless [{} ({}) -> {} ({})]",
+                            error.from, stringify!($from),
+                            error.to, stringify!($to)
+                        );
+
+                        error
+                    }.to)
                 }
             }
         )*

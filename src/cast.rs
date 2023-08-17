@@ -139,8 +139,7 @@ pub trait LosslessCast {
     }
 }
 
-/// Extension trait for saturating an integer to a target type, generally applied after a
-/// [`Cast::cast`]
+/// Extension trait for saturating an integer to a target type, applied after a [`Cast::cast`]
 ///
 /// When applied to a cast that was lossless this will simply return the casted value. If lossy,
 /// it will return the target type's MIN or MAX, whichever is closest to the source value. This
@@ -173,6 +172,41 @@ pub trait Saturate<T> {
     /// let _fail = f32::NAN.cast::<u16>().saturate();
     /// ```
     fn saturate(self) -> T;
+}
+
+/// Extension trait for accepting the result of a [`Cast::cast`], even if it was lossy
+///
+/// This is spiritually similar to the `as` keyword but offers a few advantages. Foremost among
+/// these is to improve self-documentation of code by expressing that the author intended the
+/// conversion to be potentially-lossy. This helps a maintainer who might otherwise wonder if the
+/// cast were an oversight. In addition, this trait allows for use in generic contexts, and enables
+/// implementation of lossy casts on non-primitive types where applicable.
+pub trait Accept<T> {
+    /// Called on a Result<T, CastError<F, T>> to accept the result of the cast, even if it was
+    /// lossy. This is essentially a convenience wrapper around unwrapping in the success case or
+    /// extracting the `to` field of the CastError in the fail case. For primitives this should
+    /// have the same runtime cost as the `as` keyword (that is, none at all), at least in
+    /// release builds.
+    ///
+    /// # Examples
+    /// ```
+    /// use cove::{Cast, Accept};
+    ///
+    /// // Accept the results of the cast; in this case, it is lossless anyway
+    /// assert_eq!(7f32.cast::<usize>().accept(), 7usize);
+    ///
+    /// // Accept the results of the cast; it is lossy but by accepting we discard error information
+    /// assert_eq!(7.1f32.cast::<usize>().accept(), 7usize);
+    /// ```
+    fn accept(self) -> T;
+}
+
+pub trait Assume<T> {
+    /// # Examples
+    /// ```
+    ///
+    /// ```
+    fn assume(self) -> T;
 }
 
 /// Indicates that a cast between numeric types lost data

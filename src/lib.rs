@@ -1,3 +1,4 @@
+#![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 
 //! This crate provides extension traits for casting between numerical types, especially
@@ -92,7 +93,8 @@
 //! implemented. It may be implemented externally by extending the base casting traits in
 //! [`cove::base`](crate::base).
 
-// TODO: NonZero support, no_std support, tests, performance recheck,
+// TODO: NonZero support, tests (both std and no_std), performance recheck
+// TODO: example of extending Cast (reference it in the CastImpl docs)
 // TODO: re-document everything: include up-front quick usage examples and also performance notes
 // TODO: fill out cargo.toml more, fill out readme
 // TODO: solicit feedback, possibly take feedback, publish a 1.0

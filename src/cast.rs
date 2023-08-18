@@ -1,7 +1,6 @@
 
 use crate::base::CastImpl;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
+use core::fmt::{Debug, Display, Formatter};
 
 /// Extension trait for fallibly casting between numerical types with error detection
 ///
@@ -27,14 +26,23 @@ pub trait Cast {
     ///
     /// // Explicit disambiguation via turbofish required in this case
     /// assert_eq!(7u32.cast::<u8>()?, 7u8);
+    /// # Ok::<(), cove::LossyCastError<u32, u8>>(())
+    /// ```
+    ///
+    /// ```
+    /// use cove::Cast;
     ///
     /// // Cast a float to an integer losslessly
     /// assert_eq!(6f64.cast::<i8>()?, 6);
+    /// # Ok::<(), cove::LossyCastError<f64, i8>>(())
+    /// ```
+    ///
+    /// ```
+    /// use cove::Cast;
     ///
     /// // Cast a float to an integer lossily, extracting the lossy value from the error
     /// assert_eq!(6.3f32.cast::<i32>().unwrap_err().to, 6);
-    ///
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// # Ok::<(), cove::LossyCastError<f32, i32>>(())
     /// ```
     #[inline]
     fn cast<T>(self) -> Result<T, LossyCastError<Self, T>> where Self: Sized + CastImpl<T> {
@@ -187,7 +195,7 @@ pub struct LossyCastError<CastFrom, CastTo> {
 }
 
 impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, CastTo> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             formatter,
             "Numerical cast was lossy [{} ({}) -> {} ({})]",
@@ -197,4 +205,6 @@ impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, Ca
     }
 }
 
-impl<CastFrom: Debug + Display, CastTo: Debug + Display> Error for LossyCastError<CastFrom, CastTo> {}
+#[cfg(feature = "std")]
+impl<CastFrom: Debug + Display, CastTo: Debug + Display>
+std::error::Error for LossyCastError<CastFrom, CastTo> {}

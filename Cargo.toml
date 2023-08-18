@@ -7,3 +7,7 @@ repository = "https://github.com/immodestproposal/cove"
 description = """
 Casts Of Varying Elegance (COVE): extension traits for casting numerical types
 """
+
+[features]
+default = ["std"]
+std = []

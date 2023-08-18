@@ -92,7 +92,7 @@
 //! implemented. It may be implemented externally by extending the base casting traits in
 //! [`cove::base`](crate::base).
 
-// TODO: NonZero support, tests, performance recheck,
+// TODO: NonZero support, no_std support, tests, performance recheck,
 // TODO: re-document everything: include up-front quick usage examples and also performance notes
 // TODO: fill out cargo.toml more, fill out readme
 // TODO: solicit feedback, possibly take feedback, publish a 1.0

@@ -7,6 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/num/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/cove/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/num/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>

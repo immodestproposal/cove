@@ -1,6 +1,6 @@
 //! This module provides built-in implementation of the casting traits for primitive types
 
-use crate::cast::{Accept, Assume, Cast, LossyCast, LosslessCast, Saturate, CastError};
+use crate::cast::{Cast, CastResult, LossyCast, Lossless, LosslessCast, Saturate, CastError};
 use crate::base::{CastImpl, LossyCastImpl, LosslessCastImpl};
 
 macro_rules! cast {
@@ -18,19 +18,20 @@ macro_rules! cast {
     (@lossy $from:ty => ($($to:ty),+)) => {
         $(
             impl LossyCastImpl<$to> for $from {
+                #[inline]
                 fn lossy_cast_impl(self) -> $to {
                     self as $to
                 }
             }
 
-            impl Accept<$to> for Result<$to, CastError<$from, $to>> {
-                fn accept(self) -> $to {
+            impl CastResult<$to> for Result<$to, CastError<$from, $to>> {
+                #[inline]
+                fn accept_lossy(self) -> $to {
                     self.unwrap_or_else(|error| error.to)
                 }
-            }
 
-            impl Assume<$to> for Result<$to, CastError<$from, $to>> {
-                fn assume(self) -> $to {
+                #[inline]
+                fn assume_lossless(self) -> $to {
                     self.unwrap_or_else(|error| {
                         // Should not arrive here; panic in a debug build
                         debug_assert!(
@@ -54,6 +55,7 @@ macro_rules! cast {
     (integer $from:ty => $($to:ty),+) => {
         $(
             impl CastImpl<$to> for $from {
+                #[inline]
                 fn cast_impl(self) -> Result<$to, CastError<Self, $to>> {
                     self.try_into().map_err(|_| CastError {
                         from: self,
@@ -63,6 +65,7 @@ macro_rules! cast {
             }
 
             impl Saturate<$to> for CastError<$from, $to> {
+                #[inline]
                 fn saturate(self) -> $to {
                     // Cast failed; if this is less than 0 use the target's MIN, otherwise
                     // use its MAX. This logic cannot be used in general for saturation but
@@ -77,6 +80,7 @@ macro_rules! cast {
             }
 
             impl Saturate<$to> for Result<$to, CastError<$from, $to>> {
+                #[inline]
                 fn saturate(self) -> $to {
                     self.unwrap_or_else(|error| error.saturate())
                 }
@@ -87,6 +91,7 @@ macro_rules! cast {
     (floating $from:ty => $($to:ty),+) => {
         $(
             impl CastImpl<$to> for $from {
+                #[inline]
                 fn cast_impl(self) -> Result<$to, CastError<Self, $to>> {
                     // Because TryFrom/TryInto is not implemented for floating point, we test
                     // for lossy conversions by casting to the target and back, then checking
@@ -111,8 +116,23 @@ macro_rules! cast {
     (lossless $from:ty => $($to:ty),+) => {
         $(
             impl LosslessCastImpl<$to> for $from {
+                #[inline]
                 fn lossless_cast_impl(self) -> $to {
                     self as $to
+                }
+            }
+
+            impl Lossless<$to> for Result<$to, CastError<$from, $to>> {
+                #[inline]
+                fn lossless(self) -> $to {
+                    debug_assert!(
+                        self.is_ok(),
+                        "Implementation error: implemented Lossless for invalid types [{} -> {}]",
+                        stringify!($from),
+                        stringify!($to)
+                    );
+
+                    unsafe {self.unwrap_unchecked()}
                 }
             }
         )*

@@ -36,6 +36,7 @@ pub trait Cast {
     ///
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
+    #[inline]
     fn cast<T>(self) -> Result<T, CastError<Self, T>> where Self: Sized + CastImpl<T> {
         self.cast_impl()
     }
@@ -157,6 +158,10 @@ pub trait Saturate<T> {
     /// ```
     /// use cove::{Cast, Saturate};
     ///
+    /// // Call a function `foo` via a cast; no type disambiguation required in this case
+    /// fn foo(x: u8) -> u8 {x}
+    /// assert_eq!(foo(7u32.cast().saturate()), 7u8);
+    ///
     /// // Saturating after a lossless cast just yields the original value
     /// assert_eq!((-3i32).cast::<i8>().saturate(), -3);
     ///
@@ -174,6 +179,53 @@ pub trait Saturate<T> {
     fn saturate(self) -> T;
 }
 
+pub trait Lossless<T> {
+    /// # Examples
+    /// ```
+    /// use cove::{Cast, Lossless};
+    ///
+    /// // Call a function `foo` via a lossless cast; no type disambiguation required in this case
+    /// fn foo(x: u32) -> u32 {x}
+    /// assert_eq!(foo(7u8.cast().lossless()), 7u32);
+    ///
+    /// // Explicit disambiguation via turbofish required in this case
+    /// assert_eq!(7u8.cast::<u32>().lossless(), 7u32);
+    ///
+    /// // Cast an integer to a float losslessly
+    /// assert_eq!(6i8.cast::<f64>().lossless(), 6f64);
+    ///
+    /// // Widen a signed integer losslessly
+    /// assert_eq!(-3i16.cast::<i32>().lossless(), -3i32);
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use cove::{Cast, Lossless};
+    ///
+    /// // Cast a float to an integer losslessly -- OOPS, won't compile on any platform since this
+    /// // cannot be guaranteed to be lossless at compile time
+    /// assert_eq!(6.3f32.cast::<i32>().lossless(), 6);
+    /// ```
+    ///
+    #[cfg_attr(target_pointer_width = "64", doc = "```")]
+    #[cfg_attr(not(target_pointer_width = "64"), doc = "```compile_fail")]
+    /// use cove::{Cast, Lossless};
+    ///
+    /// // Cast a u64 to usize; compiles on platforms where usize is 64 bits, but not 16 or 32
+    /// assert_eq!(8u64.cast::<usize>().lossless(), 8usize);
+    ///
+    /// ```
+    ///
+    #[cfg_attr(any(target_pointer_width = "16", target_pointer_width = "32"), doc = "```")]
+    #[cfg_attr(not(any(target_pointer_width = "16", target_pointer_width = "32")), doc = "```compile_fail")]
+    /// use cove::{Cast, Lossless};
+    ///
+    /// // Cast an isize to i32; compiles on platforms where isize is 16 or 32 bits, but not 64
+    /// assert_eq!(8isize.cast::<i32>().lossless(), 8usize);
+    ///
+    /// ```
+    fn lossless(self) -> T;
+}
+
 /// Extension trait for accepting the result of a [`Cast::cast`], even if it was lossy
 ///
 /// This is spiritually similar to the `as` keyword but offers a few advantages. Foremost among
@@ -181,7 +233,7 @@ pub trait Saturate<T> {
 /// conversion to be potentially-lossy. This helps a maintainer who might otherwise wonder if the
 /// cast were an oversight. In addition, this trait allows for use in generic contexts, and enables
 /// implementation of lossy casts on non-primitive types where applicable.
-pub trait Accept<T> {
+pub trait CastResult<T> {
     /// Called on a Result<T, CastError<F, T>> to accept the result of the cast, even if it was
     /// lossy. This is essentially a convenience wrapper around unwrapping in the success case or
     /// extracting the `to` field of the CastError in the fail case. For primitives this should
@@ -190,23 +242,21 @@ pub trait Accept<T> {
     ///
     /// # Examples
     /// ```
-    /// use cove::{Cast, Accept};
+    /// use cove::{Cast, CastResult};
+    ///
+    /// // Call a function `foo` via a cast; no type disambiguation required in this case
+    /// fn foo(x: u8) -> u8 {x}
+    /// assert_eq!(foo(7u32.cast().accept_lossy()), 7u8);
     ///
     /// // Accept the results of the cast; in this case, it is lossless anyway
-    /// assert_eq!(7f32.cast::<usize>().accept(), 7usize);
+    /// assert_eq!(7f32.cast::<usize>().accept_lossy(), 7usize);
     ///
     /// // Accept the results of the cast; it is lossy but by accepting we discard error information
-    /// assert_eq!(7.1f32.cast::<usize>().accept(), 7usize);
+    /// assert_eq!(7.1f32.cast::<usize>().accept_lossy(), 7usize);
     /// ```
-    fn accept(self) -> T;
-}
+    fn accept_lossy(self) -> T;
 
-pub trait Assume<T> {
-    /// # Examples
-    /// ```
-    ///
-    /// ```
-    fn assume(self) -> T;
+    fn assume_lossless(self) -> T;
 }
 
 /// Indicates that a cast between numeric types lost data

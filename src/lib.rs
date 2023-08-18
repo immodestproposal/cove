@@ -87,8 +87,8 @@
 //! default for integer to integer conversions. This provides a convenient yet explicit mechanism
 //! for casting to the closest target value.
 //!
-//! ### NonZero*
-//! Built-in support for casting to and from the std::num::NonZero* family is planned but not yet
+//! ### `NonZero`
+//! Built-in support for casting to and from the `std::num::NonZero`* family is planned but not yet
 //! implemented. It may be implemented externally by extending the base casting traits in
 //! [`cove::base`](crate::base).
 

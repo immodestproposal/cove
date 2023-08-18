@@ -1,14 +1,14 @@
 //! This module provides built-in implementation of the casting traits for primitive types
 
-use crate::cast::{Cast, CastResult, LossyCast, Lossless, LosslessCast, Saturate, CastError};
-use crate::base::{CastImpl, LossyCastImpl, LosslessCastImpl};
+#![allow(clippy::wildcard_imports)]
+
+use crate::cast::{AssumeLossless, Cast, Closest, Lossless, Lossy, LossyCastError, Saturated};
+use crate::base::CastImpl;
 
 macro_rules! cast {
     ($($num:ty),+) => {
         $(
             impl Cast for $num {}
-            impl LossyCast for $num {}
-            impl LosslessCast for $num {}
         )*
 
         // All casts can be lossy, so generate the LossyCastImpls in n-squared fashion
@@ -17,19 +17,14 @@ macro_rules! cast {
 
     (@lossy $from:ty => ($($to:ty),+)) => {
         $(
-            impl LossyCastImpl<$to> for $from {
+            impl Lossy<$to> for Result<$to, LossyCastError<$from, $to>> {
                 #[inline]
-                fn lossy_cast_impl(self) -> $to {
-                    self as $to
+                fn lossy(self) -> $to {
+                    self.unwrap_or_else(|error| error.to)
                 }
             }
 
-            impl CastResult<$to> for Result<$to, CastError<$from, $to>> {
-                #[inline]
-                fn accept_lossy(self) -> $to {
-                    self.unwrap_or_else(|error| error.to)
-                }
-
+            impl AssumeLossless<$to> for Result<$to, LossyCastError<$from, $to>> {
                 #[inline]
                 fn assume_lossless(self) -> $to {
                     self.unwrap_or_else(|error| {
@@ -56,17 +51,17 @@ macro_rules! cast {
         $(
             impl CastImpl<$to> for $from {
                 #[inline]
-                fn cast_impl(self) -> Result<$to, CastError<Self, $to>> {
-                    self.try_into().map_err(|_| CastError {
+                fn cast_impl(self) -> Result<$to, LossyCastError<Self, $to>> {
+                    self.try_into().map_err(|_| LossyCastError {
                         from: self,
                         to: self as $to
                     })
                 }
             }
 
-            impl Saturate<$to> for CastError<$from, $to> {
+            impl Saturated<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn saturate(self) -> $to {
+                fn saturated(self) -> $to {
                     // Cast failed; if this is less than 0 use the target's MIN, otherwise
                     // use its MAX. This logic cannot be used in general for saturation but
                     // holds for all types actually fed to this macro. Note that the branch
@@ -79,10 +74,25 @@ macro_rules! cast {
                 }
             }
 
-            impl Saturate<$to> for Result<$to, CastError<$from, $to>> {
+            impl Saturated<$to> for Result<$to, LossyCastError<$from, $to>> {
                 #[inline]
-                fn saturate(self) -> $to {
-                    self.unwrap_or_else(|error| error.saturate())
+                fn saturated(self) -> $to {
+                    self.unwrap_or_else(|error| error.saturated())
+                }
+            }
+
+            impl Closest<$to> for LossyCastError<$from, $to> {
+                #[inline]
+                fn closest(self) -> $to {
+                    // For int-to-int the closest is the saturated
+                    self.saturated()
+                }
+            }
+
+            impl Closest<$to> for Result<$to, LossyCastError<$from, $to>> {
+                #[inline]
+                fn closest(self) -> $to {
+                    self.unwrap_or_else(|error| error.closest())
                 }
             }
         )*
@@ -92,17 +102,33 @@ macro_rules! cast {
         $(
             impl CastImpl<$to> for $from {
                 #[inline]
-                fn cast_impl(self) -> Result<$to, CastError<Self, $to>> {
+                fn cast_impl(self) -> Result<$to, LossyCastError<Self, $to>> {
                     // Because TryFrom/TryInto is not implemented for floating point, we test
                     // for lossy conversions by casting to the target and back, then checking
                     // whether any data was lost.
-                    match self == (self as $to as $from) {
+                    #[allow(clippy::float_cmp)]
+                    match self == (self as $to) as $from {
                         true => Ok(self as $to),
-                        false => Err(CastError {
+                        false => Err(LossyCastError {
                             from: self,
                             to: self as $to
                         })
                     }
+                }
+            }
+
+            impl Closest<$to> for LossyCastError<$from, $to> {
+                #[inline]
+                fn closest(self) -> $to {
+                    // For float-to-int and int-to-float the raw cast is the closest
+                    self.to
+                }
+            }
+
+            impl Closest<$to> for Result<$to, LossyCastError<$from, $to>> {
+                #[inline]
+                fn closest(self) -> $to {
+                    self.unwrap_or_else(|error| error.closest())
                 }
             }
         )*
@@ -115,14 +141,7 @@ macro_rules! cast {
 
     (lossless $from:ty => $($to:ty),+) => {
         $(
-            impl LosslessCastImpl<$to> for $from {
-                #[inline]
-                fn lossless_cast_impl(self) -> $to {
-                    self as $to
-                }
-            }
-
-            impl Lossless<$to> for Result<$to, CastError<$from, $to>> {
+            impl Lossless<$to> for Result<$to, LossyCastError<$from, $to>> {
                 #[inline]
                 fn lossless(self) -> $to {
                     debug_assert!(
@@ -144,6 +163,7 @@ macro_rules! cast {
     };
 }
 
+// -- Macro-Generated Bulk Implementations: Portable -- //
 cast!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
 
 cast!(integer u8 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
@@ -182,6 +202,7 @@ cast!(lossless isize => isize);
 cast!(lossless f32 => f32, f64);
 cast!(lossless f64 => f64);
 
+// -- Macro-Generated Bulk Implementations: Non-Portable -- //
 #[cfg(target_pointer_width = "16")]
 mod platform_dependent {
     use super::*;
@@ -213,4 +234,27 @@ mod platform_dependent {
 
     cast!(lossless u8, u16, u32, u64 => usize);
     cast!(lossless u8, u16, u32, i8, i16, i32, i64 => isize);
+}
+
+// -- Manual Implementations -- //
+impl Saturated<f64> for f32 {
+    #[inline]
+    fn saturated(self) -> f64 {
+        self.into()
+    }
+}
+
+impl Closest<f64> for f32 {
+    #[inline]
+    fn closest(self) -> f64 {
+        self.into()
+    }
+}
+
+impl Closest<f32> for f64 {
+    #[inline]
+    #[allow(clippy::cast_possible_truncation)]
+    fn closest(self) -> f32 {
+        self as f32
+    }
 }

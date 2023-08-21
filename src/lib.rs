@@ -100,6 +100,7 @@
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 
 mod cast;
+mod nonzero;
 mod primitives;
 
 pub mod base;

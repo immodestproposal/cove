@@ -44,6 +44,17 @@ pub trait Cast {
     /// assert_eq!(6.3f32.cast::<i32>().unwrap_err().to, 6);
     /// # Ok::<(), cove::LossyCastError<f32, i32>>(())
     /// ```
+    ///
+    /// ```
+    /// # fn foo() -> Option<()> {
+    /// use cove::Cast;
+    /// use core::num::{NonZeroU8, NonZeroU32};
+    ///
+    /// // Cast a NonZeroU8 to NonZeroU32 losslessly
+    /// assert_eq!(NonZeroU8::new(7)?.cast(), Ok(NonZeroU32::new(7)?));
+    /// # Some(()) }
+    /// # let _ = foo();
+    /// ```
     #[inline]
     fn cast<T>(self) -> Result<T, LossyCastError<Self, T>> where Self: Sized + CastImpl<T> {
         self.cast_impl()
@@ -185,7 +196,7 @@ pub trait AssumeLossless<T> {
 }
 
 /// Indicates that a cast between numeric types lost data
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct LossyCastError<CastFrom, CastTo> {
     /// The original value before the cast
     pub from: CastFrom,

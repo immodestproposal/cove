@@ -18,7 +18,7 @@ macro_rules! cast {
         )*
     };
 
-    (to_nonzero $from:ty => $($to:ty),+) => {
+    (nonzero_to_nonzero $from:ty => $($to:ty),+) => {
         $(
             impl CastImpl<$to> for $from {
                 #[inline]
@@ -70,79 +70,80 @@ macro_rules! cast {
     };
 }
 
+// -- Macro-Generated Bulk Implementations: Portable -- //
 cast!(
     NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
     NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroU8 =>
+    nonzero_to_nonzero NonZeroU8 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroU16 =>
+    nonzero_to_nonzero NonZeroU16 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroU32 =>
+    nonzero_to_nonzero NonZeroU32 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroU64 =>
+    nonzero_to_nonzero NonZeroU64 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroU128 =>
+    nonzero_to_nonzero NonZeroU128 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroUsize =>
+    nonzero_to_nonzero NonZeroUsize =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroI8 =>
+    nonzero_to_nonzero NonZeroI8 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroI16 =>
+    nonzero_to_nonzero NonZeroI16 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroI32 =>
+    nonzero_to_nonzero NonZeroI32 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroI64 =>
+    nonzero_to_nonzero NonZeroI64 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroI128 =>
+    nonzero_to_nonzero NonZeroI128 =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
-    to_nonzero NonZeroIsize =>
+    nonzero_to_nonzero NonZeroIsize =>
         NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );

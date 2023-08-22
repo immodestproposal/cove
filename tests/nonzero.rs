@@ -10,6 +10,10 @@ fn nonzero_closest() {
     // Narrowing: NonZero -> NonZero
     assert_eq!(NonZeroU16::new(3).unwrap().cast::<NonZeroU8>().closest().get(), 3u8);
     assert_eq!(NonZeroU16::new(261).unwrap().cast::<NonZeroU8>().closest().get(), 255u8);
+
+    // Narrowing: NonZero -> primitive
+    assert_eq!(NonZeroU16::new(3).unwrap().cast::<u8>().closest(), 3u8);
+    assert_eq!(NonZeroU16::new(261).unwrap().cast::<u8>().closest(), 255u8);
 }
 
 #[test]
@@ -17,6 +21,10 @@ fn nonzero_lossy() {
     // Narrowing: NonZero -> NonZero
     assert_eq!(NonZeroU16::new(3).unwrap().cast::<NonZeroU8>().lossy().get(), 3u8);
     assert_eq!(NonZeroU16::new(261).unwrap().cast::<NonZeroU8>().lossy().get(), 5u8);
+
+    // Narrowing: NonZero -> primitive
+    assert_eq!(NonZeroU16::new(3).unwrap().cast::<u8>().lossy(), 3u8);
+    assert_eq!(NonZeroU16::new(261).unwrap().cast::<u8>().lossy(), 5u8);
 }
 
 #[test]
@@ -24,4 +32,8 @@ fn nonzero_saturated() {
     // Narrowing: NonZero -> NonZero
     assert_eq!(NonZeroU16::new(3).unwrap().cast::<NonZeroU8>().saturated().get(), 3u8);
     assert_eq!(NonZeroU16::new(261).unwrap().cast::<NonZeroU8>().saturated().get(), 255u8);
+
+    // Narrowing: NonZero -> primitive
+    assert_eq!(NonZeroU16::new(3).unwrap().cast::<u8>().saturated(), 3u8);
+    assert_eq!(NonZeroU16::new(261).unwrap().cast::<u8>().saturated(), 255u8);
 }

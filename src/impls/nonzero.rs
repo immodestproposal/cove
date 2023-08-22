@@ -12,13 +12,23 @@ use core::num::{
 };
 
 macro_rules! cast {
-    ($($num:ty),+) => {
+    ($($nonzero:ty),+; $($primitive:ty),+) => {
         $(
-            impl Cast for $num {}
+            impl Cast for $nonzero {}
         )*
+
+        // Generate the nonzero to nonzero implementations in n-squared fashion
+        cast!(to_nonzero $($nonzero),* => ($($nonzero),*));
+
+        // Generate the nonzero to primitive implementations in n*m fashion
+        cast!(to_primitive $($nonzero),* => ($($primitive), *));
     };
 
-    (nonzero_to_nonzero $from:ty => $($to:ty),+) => {
+    (to_nonzero $($from:ty),+ => $args:tt) => {
+        $(cast!(@to_nonzero $from => $args);)*
+    };
+
+    (@to_nonzero $from:ty => ($($to:ty),+)) => {
         $(
             impl CastImpl<$to> for $from {
                 #[inline]
@@ -60,6 +70,42 @@ macro_rules! cast {
         )*
     };
 
+    (to_primitive $($from:ty),+ => $args:tt) => {
+        $(cast!(@to_primitive $from => $args);)*
+    };
+
+    (@to_primitive $from:ty => ($($to:ty),+)) => {
+        $(
+            impl CastImpl<$to> for $from {
+                #[inline]
+                fn cast_impl(self) -> Result<$to, LossyCastError<Self, $to>> {
+                    self.get().cast().map_err(|error| LossyCastError {
+                        from: self,
+                        to: error.to
+                    })
+                }
+            }
+
+            impl Saturated<$to> for LossyCastError<$from, $to> {
+                #[inline]
+                fn saturated(self) -> $to {
+                    LossyCastError {
+                        from: self.from.get(),
+                        to: self.to
+                    }.saturated()
+                }
+            }
+
+            impl Closest<$to> for LossyCastError<$from, $to> {
+                #[inline]
+                fn closest(self) -> $to {
+                    // For int-to-int the closest is the saturated
+                    self.saturated()
+                }
+            }
+        )*
+    };
+
     (lossless $from:ty => $($to:ty),+) => {
         $(impl LosslessCast for Result<$to, LossyCastError<$from, $to>> {})*
     };
@@ -73,104 +119,45 @@ macro_rules! cast {
 // -- Macro-Generated Bulk Implementations: Portable -- //
 cast!(
     NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize;
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
 );
-
-cast!(
-    nonzero_to_nonzero NonZeroU8 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroU16 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroU32 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroU64 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroU128 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroUsize =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroI8 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroI16 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroI32 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroI64 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroI128 =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
-cast!(
-    nonzero_to_nonzero NonZeroIsize =>
-        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
-);
-
 
 cast!(
     lossless NonZeroU8 =>
         NonZeroU8,  NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
-        NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128
+        NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
+        u8, u16, u32, u64, u128,
+        i16, i32, i64, i128
 );
 
 cast!(
     lossless NonZeroU16 =>
-        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128
+        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128,
+        u16, u32, u64, u128, i32, i64, i128
 );
 
-cast!(lossless NonZeroU32 => NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128);
-cast!(lossless NonZeroU64 => NonZeroU64, NonZeroU128, NonZeroI128);
-cast!(lossless NonZeroU128 => NonZeroU128);
-cast!(lossless NonZeroUsize => NonZeroUsize);
+cast!(
+    lossless NonZeroU32 =>
+        NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128,
+        u32, u64, u128, i64, i128
+);
 
-cast!(lossless NonZeroI8 => NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128);
-cast!(lossless NonZeroI16 => NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128);
-cast!(lossless NonZeroI32 => NonZeroI32, NonZeroI64, NonZeroI128);
-cast!(lossless NonZeroI64 => NonZeroI64, NonZeroI128);
-cast!(lossless NonZeroI128 => NonZeroI128);
-cast!(lossless NonZeroIsize => NonZeroIsize);
+cast!(lossless NonZeroU64 => NonZeroU64, NonZeroU128, NonZeroI128, u64, u128, i128);
+cast!(lossless NonZeroU128 => NonZeroU128, u128);
+cast!(lossless NonZeroUsize => NonZeroUsize, usize);
+
+cast!(
+    lossless NonZeroI8 =>
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
+        i8, i16, i32, i64, i128
+);
+
+cast!(lossless NonZeroI16 => NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, i16, i32, i64, i128);
+cast!(lossless NonZeroI32 => NonZeroI32, NonZeroI64, NonZeroI128, i32, i64, i128);
+cast!(lossless NonZeroI64 => NonZeroI64, NonZeroI128, i64, i128);
+cast!(lossless NonZeroI128 => NonZeroI128, i128);
+cast!(lossless NonZeroIsize => NonZeroIsize, isize);
 
 // -- Macro-Generated Bulk Implementations: Non-Portable -- //
 #[cfg(target_pointer_width = "16")]
@@ -179,10 +166,15 @@ mod platform_dependent {
 
     cast!(
         lossless NonZeroUsize =>
-            NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128
+            NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128,
+            u16, u32, u64, u128, i32, i64, i128
     );
 
-    cast!(lossless NonZeroIsize => NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128);
+    cast!(
+        lossless NonZeroIsize =>
+            NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
+            i16, i32, i64, i128
+    );
 
     cast!(lossless NonZeroU8, NonZeroU16 => NonZeroUsize);
     cast!(lossless NonZeroU8, NonZeroI8, NonZeroI16 => NonZeroIsize);
@@ -192,8 +184,13 @@ mod platform_dependent {
 mod platform_dependent {
     use super::*;
 
-    cast!(lossless NonZeroUsize => NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128);
-    cast!(lossless NonZeroIsize => NonZeroI32, NonZeroI64, NonZeroI128);
+    cast!(
+        lossless NonZeroUsize =>
+            NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128,
+            u32, u64, u128, i64, i128
+    );
+
+    cast!(lossless NonZeroIsize => NonZeroI32, NonZeroI64, NonZeroI128, i32, i64, i128);
 
     cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32 => NonZeroUsize);
     cast!(lossless NonZeroU8, NonZeroU16, NonZeroI8, NonZeroI16, NonZeroI32 => NonZeroIsize);
@@ -203,8 +200,8 @@ mod platform_dependent {
 mod platform_dependent {
     use super::*;
 
-    cast!(lossless NonZeroUsize => NonZeroU64, NonZeroU128, NonZeroI128);
-    cast!(lossless NonZeroIsize => NonZeroI64, NonZeroI128);
+    cast!(lossless NonZeroUsize => NonZeroU64, NonZeroU128, NonZeroI128, u64, u128, i128);
+    cast!(lossless NonZeroIsize => NonZeroI64, NonZeroI128, i64, i128);
 
     cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64 => NonZeroUsize);
 

@@ -2,49 +2,15 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::cast::{AssumeLossless, Cast, Closest, Lossless, Lossy, LossyCastError, Saturated};
+use crate::cast::{Cast, Closest, LossyCastError, Saturated};
 use crate::base::CastImpl;
+use super::LosslessCast;
 
 macro_rules! cast {
     ($($num:ty),+) => {
         $(
             impl Cast for $num {}
         )*
-
-        // All casts can be lossy, so generate the LossyCastImpls in n-squared fashion
-        cast!(lossy $($num),* => ($($num),*));
-    };
-
-    (@lossy $from:ty => ($($to:ty),+)) => {
-        $(
-            impl Lossy<$to> for Result<$to, LossyCastError<$from, $to>> {
-                #[inline]
-                fn lossy(self) -> $to {
-                    self.unwrap_or_else(|error| error.to)
-                }
-            }
-
-            impl AssumeLossless<$to> for Result<$to, LossyCastError<$from, $to>> {
-                #[inline]
-                fn assume_lossless(self) -> $to {
-                    self.unwrap_or_else(|error| {
-                        // Should not arrive here; panic in a debug build
-                        debug_assert!(
-                            false,
-                            "Lossy cast was assumed to be lossless [{} ({}) -> {} ({})]",
-                            error.from, stringify!($from),
-                            error.to, stringify!($to)
-                        );
-
-                        error
-                    }.to)
-                }
-            }
-        )*
-    };
-
-    (lossy $($from:ty),+ => $args:tt) => {
-        $(cast!(@lossy $from => $args);)*
     };
 
     (integer $from:ty => $($to:ty),+) => {
@@ -74,25 +40,11 @@ macro_rules! cast {
                 }
             }
 
-            impl Saturated<$to> for Result<$to, LossyCastError<$from, $to>> {
-                #[inline]
-                fn saturated(self) -> $to {
-                    self.unwrap_or_else(|error| error.saturated())
-                }
-            }
-
             impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
                 fn closest(self) -> $to {
                     // For int-to-int the closest is the saturated
                     self.saturated()
-                }
-            }
-
-            impl Closest<$to> for Result<$to, LossyCastError<$from, $to>> {
-                #[inline]
-                fn closest(self) -> $to {
-                    self.unwrap_or_else(|error| error.closest())
                 }
             }
         )*
@@ -124,13 +76,6 @@ macro_rules! cast {
                     self.to
                 }
             }
-
-            impl Closest<$to> for Result<$to, LossyCastError<$from, $to>> {
-                #[inline]
-                fn closest(self) -> $to {
-                    self.unwrap_or_else(|error| error.closest())
-                }
-            }
         )*
     };
 
@@ -140,21 +85,7 @@ macro_rules! cast {
     };
 
     (lossless $from:ty => $($to:ty),+) => {
-        $(
-            impl Lossless<$to> for Result<$to, LossyCastError<$from, $to>> {
-                #[inline]
-                fn lossless(self) -> $to {
-                    debug_assert!(
-                        self.is_ok(),
-                        "Implementation error: implemented Lossless for invalid types [{} -> {}]",
-                        stringify!($from),
-                        stringify!($to)
-                    );
-
-                    unsafe {self.unwrap_unchecked()}
-                }
-            }
-        )*
+        $(impl LosslessCast for Result<$to, LossyCastError<$from, $to>> {})*
     };
 
     (lossless $first:ty, $($from:ty),+ => $to:ty) => {

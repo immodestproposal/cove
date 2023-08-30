@@ -33,15 +33,15 @@
 //! It is neither necessary nor advised to implement the interface traits directly; instead,
 //! implement these base traits to extend casting functionality to new types.
 
-use crate::LossyCastError;
-
 /// Provides the base trait for [`Cast`](crate::Cast); implement this to extend
 /// [`Cast`](crate::Cast) to new types
 pub trait CastImpl<T> {
+    type Error;
+
     /// Casts `self` to type `T`; see [`Cast::cast`](crate::Cast::cast) for details and invariants
     /// to uphold.
     ///
     /// # Errors
     /// Returns `Err` if the cast is lossy; that is, if the casted value is not equal to `self`
-    fn cast_impl(self) -> Result<T, LossyCastError<Self, T>> where Self: Sized;
+    fn cast_impl(self) -> Result<T, Self::Error>;
 }

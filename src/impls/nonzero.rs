@@ -2,7 +2,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::cast::{Cast, Closest, LossyCastError, Saturated};
+use crate::cast::{Cast, Closest, FailedCastError, LossyCastError, Saturated};
 use crate::base::CastImpl;
 use super::LosslessCast;
 
@@ -10,6 +10,27 @@ use core::num::{
     NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
     NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 };
+
+// trait NonZeroMapping {
+//     type Primitive;
+// }
+//
+// macro_rules! assign {
+//     ($($nonzero:ty => $primitive:ty),+) => {
+//         $(
+//             impl NonZeroMapping for $nonzero {
+//                 type Primitive = $primitive;
+//             }
+//         )*
+//     }
+// }
+
+// assign!(
+//     NonZeroU8 => u8, NonZeroU16 => u16, NonZeroU32 => u32,
+//     NonZeroU64 => u64, NonZeroU128 => u128, NonZeroUsize => usize,
+//     NonZeroI8 => i8, NonZeroI16 => i16, NonZeroI32 => i32,
+//     NonZeroI64 => i64, NonZeroI128 => i128, NonZeroIsize => isize
+// );
 
 macro_rules! cast {
     ($($nonzero:ty),+; $($primitive:ty),+) => {
@@ -22,6 +43,9 @@ macro_rules! cast {
 
         // Generate the nonzero to primitive implementations in n*m fashion
         cast!(to_primitive $($nonzero),* => ($($primitive), *));
+
+        // Generate the primitive to nonzero implementations in n*m fashion
+        cast!(from_primitive $($primitive),* => ($($nonzero), *));
     };
 
     (to_nonzero $($from:ty),+ => $args:tt) => {
@@ -31,8 +55,10 @@ macro_rules! cast {
     (@to_nonzero $from:ty => ($($to:ty),+)) => {
         $(
             impl CastImpl<$to> for $from {
+                type Error = LossyCastError<Self, $to>;
+
                 #[inline]
-                fn cast_impl(self) -> Result<$to, LossyCastError<Self, $to>> {
+                fn cast_impl(self) -> Result<$to, Self::Error> {
                     // Safe to use `new_unchecked` because the value cannot be zero
                     // it cannot be zero itself.
                     match self.get().cast() {
@@ -77,9 +103,11 @@ macro_rules! cast {
     (@to_primitive $from:ty => ($($to:ty),+)) => {
         $(
             impl CastImpl<$to> for $from {
+                type Error = LossyCastError<Self, $to>;
+
                 #[inline]
-                fn cast_impl(self) -> Result<$to, LossyCastError<Self, $to>> {
-                    self.get().cast().map_err(|error| LossyCastError {
+                fn cast_impl(self) -> Result<$to, Self::Error> {
+                    self.get().cast::<$to>().map_err(|error| LossyCastError {
                         from: self,
                         to: error.to
                     })
@@ -101,6 +129,34 @@ macro_rules! cast {
                 fn closest(self) -> $to {
                     // For int-to-int the closest is the saturated
                     self.saturated()
+                }
+            }
+        )*
+    };
+
+    (from_primitive $($from:ty),+ => $args:tt) => {
+        $(cast!(@from_primitive $from => $args);)*
+    };
+
+    (@from_primitive $from:ty => ($($to:ty),+)) => {
+        $(
+            impl CastImpl<$to> for $from {
+                type Error = FailedCastError<Self, $to>;
+
+                #[inline]
+                fn cast_impl(self) -> Result<$to, Self::Error> {
+                    // Cast to the root primitive of the nonzero before creating the nonzero
+                    let casted_primitive = self.cast().map_err(|error| FailedCastError::new(self))?;
+                    <$to>::new(casted_primitive).ok_or_else(|| FailedCastError::new(self))
+                }
+            }
+
+            impl Closest<$to> for FailedCastError<$from, $to> {
+                #[inline]
+                fn closest(self) -> $to {
+                    // Create the NonZero from the closest primitive, using a value of 1 if 0
+                    <$to>::new(self.from.cast().closest())
+                        .unwrap_or_else(|| unsafe {<$to>::new_unchecked(1)})
                 }
             }
         )*

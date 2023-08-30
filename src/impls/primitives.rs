@@ -16,8 +16,10 @@ macro_rules! cast {
     (integer $from:ty => $($to:ty),+) => {
         $(
             impl CastImpl<$to> for $from {
+                type Error = LossyCastError<Self, $to>;
+
                 #[inline]
-                fn cast_impl(self) -> Result<$to, LossyCastError<Self, $to>> {
+                fn cast_impl(self) -> Result<$to, Self::Error> {
                     self.try_into().map_err(|_| LossyCastError {
                         from: self,
                         to: self as $to
@@ -53,8 +55,10 @@ macro_rules! cast {
     (floating $from:ty => $($to:ty),+) => {
         $(
             impl CastImpl<$to> for $from {
+                type Error = LossyCastError<Self, $to>;
+
                 #[inline]
-                fn cast_impl(self) -> Result<$to, LossyCastError<Self, $to>> {
+                fn cast_impl(self) -> Result<$to, Self::Error> {
                     // Because TryFrom/TryInto is not implemented for floating point, we test
                     // for lossy conversions by casting to the target and back, then checking
                     // whether any data was lost.

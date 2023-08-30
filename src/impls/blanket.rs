@@ -1,11 +1,14 @@
-use crate::cast::{AssumeLossless, Closest, Lossless, Lossy, LossyCastError, Saturated};
+use crate::cast::{
+    AssumedLossless, Closest, FailedCastError, Lossless, Lossy, LossyCastError, Saturated
+};
+
 use super::LosslessCast;
 use core::fmt::Display;
 
-impl<CastFrom: Display, CastTo: Display> AssumeLossless<CastTo>
+impl<CastFrom: Display, CastTo: Display> AssumedLossless<CastTo>
 for Result<CastTo, LossyCastError<CastFrom, CastTo>> {
     #[inline]
-    fn assume_lossless(self) -> CastTo {
+    fn assumed_lossless(self) -> CastTo {
         self.unwrap_or_else(|error| {
             // Should not arrive here; panic in a debug build
             debug_assert!(
@@ -23,6 +26,14 @@ for Result<CastTo, LossyCastError<CastFrom, CastTo>> {
 
 impl<CastFrom, CastTo> Closest<CastTo> for Result<CastTo, LossyCastError<CastFrom, CastTo>>
 where LossyCastError<CastFrom, CastTo> : Closest<CastTo> {
+    #[inline]
+    fn closest(self) -> CastTo {
+        self.unwrap_or_else(Closest::closest)
+    }
+}
+
+impl<CastFrom, CastTo> Closest<CastTo> for Result<CastTo, FailedCastError<CastFrom, CastTo>>
+    where FailedCastError<CastFrom, CastTo> : Closest<CastTo> {
     #[inline]
     fn closest(self) -> CastTo {
         self.unwrap_or_else(Closest::closest)

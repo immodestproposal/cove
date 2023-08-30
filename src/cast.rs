@@ -1,6 +1,7 @@
 
 use crate::base::CastImpl;
 use core::fmt::{Debug, Display, Formatter};
+use core::marker::PhantomData;
 
 /// Extension trait for fallibly casting between numerical types with error detection
 ///
@@ -56,7 +57,7 @@ pub trait Cast {
     /// # let _ = foo();
     /// ```
     #[inline]
-    fn cast<T>(self) -> Result<T, LossyCastError<Self, T>> where Self: Sized + CastImpl<T> {
+    fn cast<T>(self) -> Result<T, Self::Error> where Self: Sized + CastImpl<T> {
         self.cast_impl()
     }
 }
@@ -191,8 +192,8 @@ pub trait Closest<T> {
     fn closest(self) -> T;
 }
 
-pub trait AssumeLossless<T> {
-    fn assume_lossless(self) -> T;
+pub trait AssumedLossless<T> {
+    fn assumed_lossless(self) -> T;
 }
 
 /// Indicates that a cast between numeric types lost data
@@ -210,8 +211,8 @@ impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, Ca
         write!(
             formatter,
             "Numerical cast was lossy [{} ({}) -> {} ({})]",
-            self.from, stringify!(FromType),
-            self.to, stringify!(ToType)
+            self.from, stringify!(CastFrom),
+            self.to, stringify!(CastTo)
         )
     }
 }
@@ -219,3 +220,44 @@ impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, Ca
 #[cfg(feature = "std")]
 impl<CastFrom: Debug + Display, CastTo: Debug + Display>
 std::error::Error for LossyCastError<CastFrom, CastTo> {}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct FailedCastError<CastFrom, CastTo> {
+    /// The original value before the cast
+    pub from: CastFrom,
+
+    // -- Implementation -- //
+    to: PhantomData<CastTo>
+}
+
+impl<CastFrom, CastTo> FailedCastError<CastFrom, CastTo> {
+    pub fn new(source: CastFrom) -> Self {
+        Self {
+            from: source,
+            to: PhantomData
+        }
+    }
+}
+
+impl<CastFrom: Display, CastTo> Display for FailedCastError<CastFrom, CastTo> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(
+            formatter,
+            "Numerical cast failed [{} ({}) -> ({})]",
+            self.from,
+            stringify!(CastFrom),
+            stringify!(CastTo)
+        )
+    }
+}
+
+#[cfg(feature = "std")]
+impl<CastFrom: Debug + Display, CastTo: Debug>
+std::error::Error for FailedCastError<CastFrom, CastTo> {}
+
+// impl<CastFrom, CastTo> From<LossyCastError<CastFrom, CastTo>>
+// for FailedCastError<CastFrom, CastTo> {
+//     fn from(error: LossyCastError<CastFrom, CastTo>) -> Self {
+//         Self::new(error.from)
+//     }
+// }

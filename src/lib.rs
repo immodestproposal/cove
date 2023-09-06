@@ -93,7 +93,6 @@
 //! implemented. It may be implemented externally by extending the base casting traits in
 //! [`cove::base`](crate::base).
 
-// TODO: add Truncated? Maybe replace Lossy?
 // TODO: tests (both std and no_std), performance recheck
 // TODO: example of extending Cast (reference it in the CastImpl docs)
 // TODO: re-document everything: include up-front quick usage examples and also performance notes

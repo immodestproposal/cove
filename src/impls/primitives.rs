@@ -2,7 +2,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::cast::{Cast, Closest, LossyCastError, Saturated};
+use crate::cast::{Cast, Estimated, LossyCastError, Saturated};
 use crate::base::CastImpl;
 use super::LosslessCast;
 
@@ -42,9 +42,9 @@ macro_rules! cast {
                 }
             }
 
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl Estimated<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn estimated(self) -> $to {
                     // For int-to-int the closest is the saturated
                     self.saturated()
                 }
@@ -73,9 +73,9 @@ macro_rules! cast {
                 }
             }
 
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl Estimated<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn estimated(self) -> $to {
                     // For float-to-int and int-to-float the raw cast is the closest
                     self.to
                 }
@@ -179,17 +179,17 @@ impl Saturated<f64> for f32 {
     }
 }
 
-impl Closest<f64> for f32 {
+impl Estimated<f64> for f32 {
     #[inline]
-    fn closest(self) -> f64 {
+    fn estimated(self) -> f64 {
         self.into()
     }
 }
 
-impl Closest<f32> for f64 {
+impl Estimated<f32> for f64 {
     #[inline]
     #[allow(clippy::cast_possible_truncation)]
-    fn closest(self) -> f32 {
+    fn estimated(self) -> f32 {
         self as f32
     }
 }

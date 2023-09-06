@@ -1,5 +1,5 @@
 use crate::cast::{
-    AssumedLossless, Closest, FailedCastError, Lossless, Lossy, LossyCastError, Saturated
+    AssumedLossless, Estimated, FailedCastError, Lossless, Lossy, LossyCastError, Saturated
 };
 
 use super::LosslessCast;
@@ -24,19 +24,19 @@ for Result<CastTo, LossyCastError<CastFrom, CastTo>> {
     }
 }
 
-impl<CastFrom, CastTo> Closest<CastTo> for Result<CastTo, LossyCastError<CastFrom, CastTo>>
-where LossyCastError<CastFrom, CastTo> : Closest<CastTo> {
+impl<CastFrom, CastTo> Estimated<CastTo> for Result<CastTo, LossyCastError<CastFrom, CastTo>>
+where LossyCastError<CastFrom, CastTo> : Estimated<CastTo> {
     #[inline]
-    fn closest(self) -> CastTo {
-        self.unwrap_or_else(Closest::closest)
+    fn estimated(self) -> CastTo {
+        self.unwrap_or_else(Estimated::estimated)
     }
 }
 
-impl<CastFrom, CastTo> Closest<CastTo> for Result<CastTo, FailedCastError<CastFrom, CastTo>>
-    where FailedCastError<CastFrom, CastTo> : Closest<CastTo> {
+impl<CastFrom, CastTo> Estimated<CastTo> for Result<CastTo, FailedCastError<CastFrom, CastTo>>
+    where FailedCastError<CastFrom, CastTo> : Estimated<CastTo> {
     #[inline]
-    fn closest(self) -> CastTo {
-        self.unwrap_or_else(Closest::closest)
+    fn estimated(self) -> CastTo {
+        self.unwrap_or_else(Estimated::estimated)
     }
 }
 

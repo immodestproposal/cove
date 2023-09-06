@@ -2,7 +2,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::cast::{Cast, Closest, FailedCastError, LossyCastError, Saturated};
+use crate::cast::{Cast, Estimated, FailedCastError, LossyCastError, Saturated};
 use crate::base::CastImpl;
 use super::LosslessCast;
 
@@ -41,12 +41,12 @@ macro_rules! cast {
 
         // The closest value for 0 is 1 when coming from an integer to any nonzero
         cast!(
-            from_primitive_positive_closest $($integer),* =>
+            from_primitive_positive_estimate $($integer),* =>
             ($($nonzero_unsigned),*, $($nonzero_signed),*)
         );
 
         // The closest value for 0 is 1 when coming from a float to an unsigned nonzero
-        cast!(from_primitive_positive_closest $($floating),* => ($($nonzero_unsigned),*));
+        cast!(from_primitive_positive_estimate $($floating),* => ($($nonzero_unsigned),*));
 
         // The closest value for 0 could be 1 or -1 when coming from a float to a signed nonzero
         cast!(from_floating_to_signed $($floating),* => ($($nonzero_signed),*));
@@ -72,8 +72,8 @@ macro_rules! cast {
         $(cast!(@from_primitive $from => $args);)*
     };
 
-    (from_primitive_positive_closest $($from:ty),+ => $args:tt) => {
-        $(cast!(@from_primitive_positive_closest $from => $args);)*
+    (from_primitive_positive_estimate $($from:ty),+ => $args:tt) => {
+        $(cast!(@from_primitive_positive_estimate $from => $args);)*
     };
 
     (from_floating_to_signed $($from:ty),+ => $args:tt) => {
@@ -113,9 +113,9 @@ macro_rules! cast {
                 }
             }
 
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl Estimated<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn estimated(self) -> $to {
                     // For int-to-int the closest is the saturated
                     self.saturated()
                 }
@@ -151,9 +151,9 @@ macro_rules! cast {
                 }
             }
 
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl Estimated<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn estimated(self) -> $to {
                     // For int-to-int the closest is the saturated
                     self.saturated()
                 }
@@ -163,9 +163,9 @@ macro_rules! cast {
 
     (@to_floating $from:ty => ($($to:ty),+)) => {
         $(
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl Estimated<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn estimated(self) -> $to {
                     // For int-to-float the raw cast is the closest
                     self.to
                 }
@@ -188,13 +188,13 @@ macro_rules! cast {
         )*
     };
 
-    (@from_primitive_positive_closest $from:ty => ($($to:ty),+)) => {
+    (@from_primitive_positive_estimate $from:ty => ($($to:ty),+)) => {
         $(
-            impl Closest<$to> for FailedCastError<$from, $to> {
+            impl Estimated<$to> for FailedCastError<$from, $to> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn estimated(self) -> $to {
                     // Create the NonZero from the closest primitive, using a value of 1 if 0
-                    <$to>::new(self.from.cast().closest())
+                    <$to>::new(self.from.cast().estimated())
                         .unwrap_or_else(|| unsafe {<$to>::new_unchecked(1)})
                 }
             }
@@ -203,11 +203,11 @@ macro_rules! cast {
 
     (@from_floating_to_signed $from:ty => ($($to:ty),+)) => {
         $(
-            impl Closest<$to> for FailedCastError<$from, $to> {
+            impl Estimated<$to> for FailedCastError<$from, $to> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn estimated(self) -> $to {
                     // Create the NonZero from the closest primitive
-                    <$to>::new(self.from.cast().closest())
+                    <$to>::new(self.from.cast().estimated())
                         .unwrap_or_else(|| unsafe {<$to>::new_unchecked(
                             // Use a value of 1 if positive or -1 otherwise
                             match self.from.is_sign_positive() {

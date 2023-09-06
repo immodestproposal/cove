@@ -188,8 +188,8 @@ pub trait Lossy<T> {
     fn lossy(self) -> T;
 }
 
-pub trait Closest<T> {
-    fn closest(self) -> T;
+pub trait Estimated<T> {
+    fn estimated(self) -> T;
 }
 
 pub trait AssumedLossless<T> {

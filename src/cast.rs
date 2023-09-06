@@ -254,10 +254,3 @@ impl<CastFrom: Display, CastTo> Display for FailedCastError<CastFrom, CastTo> {
 #[cfg(feature = "std")]
 impl<CastFrom: Debug + Display, CastTo: Debug>
 std::error::Error for FailedCastError<CastFrom, CastTo> {}
-
-// impl<CastFrom, CastTo> From<LossyCastError<CastFrom, CastTo>>
-// for FailedCastError<CastFrom, CastTo> {
-//     fn from(error: LossyCastError<CastFrom, CastTo>) -> Self {
-//         Self::new(error.from)
-//     }
-// }

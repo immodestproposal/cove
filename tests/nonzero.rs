@@ -19,6 +19,9 @@ fn nonzero_closest() {
     assert_eq!(3u16.cast::<NonZeroU8>().closest(), NonZeroU8::new(3).unwrap());
     assert_eq!(261u16.cast::<NonZeroU8>().closest(), NonZeroU8::new(255).unwrap());
     assert_eq!(0u16.cast::<NonZeroU8>().closest(), NonZeroU8::new(1).unwrap());
+
+    // Floating point
+    assert_eq!(8.0f32.cast::<NonZeroI32>().closest(), NonZeroI32::new(8).unwrap());
 }
 
 #[test]

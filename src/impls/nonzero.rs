@@ -11,48 +11,76 @@ use core::num::{
     NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 };
 
-// trait NonZeroMapping {
-//     type Primitive;
-// }
-//
-// macro_rules! assign {
-//     ($($nonzero:ty => $primitive:ty),+) => {
-//         $(
-//             impl NonZeroMapping for $nonzero {
-//                 type Primitive = $primitive;
-//             }
-//         )*
-//     }
-// }
-
-// assign!(
-//     NonZeroU8 => u8, NonZeroU16 => u16, NonZeroU32 => u32,
-//     NonZeroU64 => u64, NonZeroU128 => u128, NonZeroUsize => usize,
-//     NonZeroI8 => i8, NonZeroI16 => i16, NonZeroI32 => i32,
-//     NonZeroI64 => i64, NonZeroI128 => i128, NonZeroIsize => isize
-// );
-
 macro_rules! cast {
-    ($($nonzero:ty),+; $($primitive:ty),+) => {
+    ($($nonzero_unsigned:ty),+; $($nonzero_signed:ty),+; $($integer:ty),+; $($floating:ty),+) => {
         $(
-            impl Cast for $nonzero {}
+            impl Cast for $nonzero_unsigned {}
+            impl Cast for $nonzero_signed {}
         )*
 
         // Generate the nonzero to nonzero implementations in n-squared fashion
-        cast!(to_nonzero $($nonzero),* => ($($nonzero),*));
+        cast!(
+            nonzero $($nonzero_unsigned),*, $($nonzero_signed),* =>
+            ($($nonzero_unsigned),*, $($nonzero_signed),*)
+        );
 
         // Generate the nonzero to primitive implementations in n*m fashion
-        cast!(to_primitive $($nonzero),* => ($($primitive), *));
+        cast!(
+            to_primitive $($nonzero_unsigned),*, $($nonzero_signed),* =>
+            ($($integer),*, $($floating),*)
+        );
+
+        cast!(to_integer $($nonzero_unsigned),*, $($nonzero_signed),* => ($($integer),*));
+        cast!(to_floating $($nonzero_unsigned),*, $($nonzero_signed),* => ($($floating),*));
 
         // Generate the primitive to nonzero implementations in n*m fashion
-        cast!(from_primitive $($primitive),* => ($($nonzero), *));
+        cast!(
+            from_primitive $($integer),*, $($floating),* =>
+            ($($nonzero_unsigned),*, $($nonzero_signed),*)
+        );
+
+        // The closest value for 0 is 1 when coming from an integer to any nonzero
+        cast!(
+            from_primitive_positive_closest $($integer),* =>
+            ($($nonzero_unsigned),*, $($nonzero_signed),*)
+        );
+
+        // The closest value for 0 is 1 when coming from a float to an unsigned nonzero
+        cast!(from_primitive_positive_closest $($floating),* => ($($nonzero_unsigned),*));
+
+        // The closest value for 0 could be 1 or -1 when coming from a float to a signed nonzero
+        cast!(from_floating_to_signed $($floating),* => ($($nonzero_signed),*));
     };
 
-    (to_nonzero $($from:ty),+ => $args:tt) => {
-        $(cast!(@to_nonzero $from => $args);)*
+    (nonzero $($from:ty),+ => $args:tt) => {
+        $(cast!(@nonzero $from => $args);)*
     };
 
-    (@to_nonzero $from:ty => ($($to:ty),+)) => {
+    (to_primitive $($from:ty),+ => $args:tt) => {
+        $(cast!(@to_primitive $from => $args);)*
+    };
+
+    (to_integer $($from:ty),+ => $args:tt) => {
+        $(cast!(@to_integer $from => $args);)*
+    };
+
+    (to_floating $($from:ty),+ => $args:tt) => {
+        $(cast!(@to_floating $from => $args);)*
+    };
+
+    (from_primitive $($from:ty),+ => $args:tt) => {
+        $(cast!(@from_primitive $from => $args);)*
+    };
+
+    (from_primitive_positive_closest $($from:ty),+ => $args:tt) => {
+        $(cast!(@from_primitive_positive_closest $from => $args);)*
+    };
+
+    (from_floating_to_signed $($from:ty),+ => $args:tt) => {
+        $(cast!(@from_floating_to_signed $from => $args);)*
+    };
+
+    (@nonzero $from:ty => ($($to:ty),+)) => {
         $(
             impl CastImpl<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
@@ -60,7 +88,6 @@ macro_rules! cast {
                 #[inline]
                 fn cast_impl(self) -> Result<$to, Self::Error> {
                     // Safe to use `new_unchecked` because the value cannot be zero
-                    // it cannot be zero itself.
                     match self.get().cast() {
                         Ok(value) => Ok(unsafe {<$to>::new_unchecked(value)}),
                         Err(error) => Err(LossyCastError {
@@ -96,10 +123,6 @@ macro_rules! cast {
         )*
     };
 
-    (to_primitive $($from:ty),+ => $args:tt) => {
-        $(cast!(@to_primitive $from => $args);)*
-    };
-
     (@to_primitive $from:ty => ($($to:ty),+)) => {
         $(
             impl CastImpl<$to> for $from {
@@ -113,7 +136,11 @@ macro_rules! cast {
                     })
                 }
             }
+        )*
+    };
 
+    (@to_integer $from:ty => ($($to:ty),+)) => {
+        $(
             impl Saturated<$to> for LossyCastError<$from, $to> {
                 #[inline]
                 fn saturated(self) -> $to {
@@ -134,8 +161,16 @@ macro_rules! cast {
         )*
     };
 
-    (from_primitive $($from:ty),+ => $args:tt) => {
-        $(cast!(@from_primitive $from => $args);)*
+    (@to_floating $from:ty => ($($to:ty),+)) => {
+        $(
+            impl Closest<$to> for LossyCastError<$from, $to> {
+                #[inline]
+                fn closest(self) -> $to {
+                    // For int-to-float the raw cast is the closest
+                    self.to
+                }
+            }
+        )*
     };
 
     (@from_primitive $from:ty => ($($to:ty),+)) => {
@@ -146,17 +181,40 @@ macro_rules! cast {
                 #[inline]
                 fn cast_impl(self) -> Result<$to, Self::Error> {
                     // Cast to the root primitive of the nonzero before creating the nonzero
-                    let casted_primitive = self.cast().map_err(|error| FailedCastError::new(self))?;
-                    <$to>::new(casted_primitive).ok_or_else(|| FailedCastError::new(self))
+                    let primitive = self.cast().map_err(|_error| FailedCastError::new(self))?;
+                    <$to>::new(primitive).ok_or_else(|| FailedCastError::new(self))
                 }
             }
+        )*
+    };
 
+    (@from_primitive_positive_closest $from:ty => ($($to:ty),+)) => {
+        $(
             impl Closest<$to> for FailedCastError<$from, $to> {
                 #[inline]
                 fn closest(self) -> $to {
                     // Create the NonZero from the closest primitive, using a value of 1 if 0
                     <$to>::new(self.from.cast().closest())
                         .unwrap_or_else(|| unsafe {<$to>::new_unchecked(1)})
+                }
+            }
+        )*
+    };
+
+    (@from_floating_to_signed $from:ty => ($($to:ty),+)) => {
+        $(
+            impl Closest<$to> for FailedCastError<$from, $to> {
+                #[inline]
+                fn closest(self) -> $to {
+                    // Create the NonZero from the closest primitive
+                    <$to>::new(self.from.cast().closest())
+                        .unwrap_or_else(|| unsafe {<$to>::new_unchecked(
+                            // Use a value of 1 if positive or -1 otherwise
+                            match self.from.is_sign_positive() {
+                                true => 1,
+                                false => -1
+                            }
+                        )})
                 }
             }
         )*
@@ -174,9 +232,10 @@ macro_rules! cast {
 
 // -- Macro-Generated Bulk Implementations: Portable -- //
 cast!(
-    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize;
     NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize;
-    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize;
+    f32, f64
 );
 
 cast!(

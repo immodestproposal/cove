@@ -39,6 +39,9 @@ macro_rules! cast {
             ($($nonzero_unsigned),*, $($nonzero_signed),*)
         );
 
+        // Generate the primitive integer to unsigned nonzero casts (Saturated)
+        cast!(from_integer_to_unsigned $($integer),* => ($($nonzero_unsigned),*));
+        
         // The closest value for 0 is 1 when coming from an integer to any nonzero
         cast!(
             from_primitive_positive_estimate $($integer),* =>
@@ -52,6 +55,7 @@ macro_rules! cast {
         cast!(from_floating_to_signed $($floating),* => ($($nonzero_signed),*));
     };
 
+    // -- Adapters for calling sub-macro permutations -- //
     (nonzero $($from:ty),+ => $args:tt) => {
         $(cast!(@nonzero $from => $args);)*
     };
@@ -71,6 +75,10 @@ macro_rules! cast {
     (from_primitive $($from:ty),+ => $args:tt) => {
         $(cast!(@from_primitive $from => $args);)*
     };
+    
+    (from_integer_to_unsigned $($from:ty),+ => $args:tt) => {
+        $(cast!(@from_integer_to_unsigned $from => $args);)*
+    };
 
     (from_primitive_positive_estimate $($from:ty),+ => $args:tt) => {
         $(cast!(@from_primitive_positive_estimate $from => $args);)*
@@ -80,6 +88,7 @@ macro_rules! cast {
         $(cast!(@from_floating_to_signed $from => $args);)*
     };
 
+    // -- Sub-macros -- //
     (@nonzero $from:ty => ($($to:ty),+)) => {
         $(
             impl CastImpl<$to> for $from {
@@ -183,6 +192,19 @@ macro_rules! cast {
                     // Cast to the root primitive of the nonzero before creating the nonzero
                     let primitive = self.cast().map_err(|_error| FailedCastError::new(self))?;
                     <$to>::new(primitive).ok_or_else(|| FailedCastError::new(self))
+                }
+            }
+        )*
+    };
+    
+    (@from_integer_to_unsigned $from:ty => ($($to:ty),+)) => {
+        $(
+            impl Saturated<$to> for FailedCastError<$from, $to> {
+                #[inline]
+                fn saturated(self) -> $to {
+                    // Create the NonZero from the saturated primitive, using a value of 1 if 0
+                    <$to>::new(self.from.cast().saturated())
+                        .unwrap_or_else(|| unsafe {<$to>::new_unchecked(1)})
                 }
             }
         )*

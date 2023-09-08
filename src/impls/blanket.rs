@@ -1,3 +1,5 @@
+//! This module provides blanket implementations of certain casting traits where applicable
+
 use crate::cast::{
     AssumedLossless, Estimated, FailedCastError, Lossless, Lossy, LossyCastError, Saturated
 };

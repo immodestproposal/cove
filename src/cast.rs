@@ -196,6 +196,8 @@ pub trait AssumedLossless<T> {
     fn assumed_lossless(self) -> T;
 }
 
+// -- LossyCastError -- //
+
 /// Indicates that a cast between numeric types lost data
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct LossyCastError<CastFrom, CastTo> {
@@ -220,6 +222,8 @@ impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, Ca
 #[cfg(feature = "std")]
 impl<CastFrom: Debug + Display, CastTo: Debug + Display>
 std::error::Error for LossyCastError<CastFrom, CastTo> {}
+
+// -- FailedCastError -- //
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct FailedCastError<CastFrom, CastTo> {

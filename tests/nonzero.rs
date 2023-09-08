@@ -6,7 +6,13 @@ use core::num::{
 };
 
 #[test]
-fn nonzero_closest() {
+fn nonzero_assumed_lossless() {
+    // Narrowing, Sign Change: NonZero -> NonZero
+    assert_eq!(NonZeroI32::new(7).unwrap().cast::<NonZeroU16>().assumed_lossless().get(), 7u16);
+}
+
+#[test]
+fn nonzero_estimated() {
     // Narrowing: NonZero -> NonZero
     assert_eq!(NonZeroU16::new(3).unwrap().cast::<NonZeroU8>().estimated().get(), 3u8);
     assert_eq!(NonZeroU16::new(261).unwrap().cast::<NonZeroU8>().estimated().get(), 255u8);

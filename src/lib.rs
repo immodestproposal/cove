@@ -94,8 +94,14 @@
 //! [`cove::base`](crate::base).
 
 // TODO: tests (both std and no_std)
-// TODO: example of extending Cast (reference it in the CastImpl docs)
-// TODO: re-document everything: include up-front quick usage examples and also performance notes
+// TODO: re-document everything:
+// TODO:    * up-front quick usage examples
+// TODO:    * performance notes
+// TODO:    * small example of using traits in a generic context
+// TODO:    * full example of extending Cast (reference it from the CastImpl docs)
+// TODO:    * comparison with standard casting methodologies
+// TODO:    * table of support for each follow-on extension trait
+// TODO:    * lib.rs, cast.rs
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
 // TODO: fill out cargo.toml more, fill out readme
 // TODO: solicit feedback, possibly take feedback, publish a 1.0

@@ -1,6 +1,6 @@
-//! This module provides the base trait needed to support casting through the interface trait
-//! [`Cast`](crate::Cast). If you only need to use existing casting support this base trait will be
-//! irrelevant to you, but it is important for extending casting support to new types.
+//! This module provides the base trait needed to support casting through the [`Cast`](crate::Cast)
+//! trait. If you only need to use existing casting support this base trait will be irrelevant to
+//! you, but it is important for extending casting support to new types.
 //!
 //! Casting functionality is split between [`CastImpl`] and [`Cast`](crate::Cast) because
 //! [`CastImpl`] is more flexible to implement while [`Cast`](crate::Cast) is more ergonomic to
@@ -30,12 +30,19 @@
 //! # Ok::<(), Box<cove::LossyCastError<u16, u8>>>(())
 //! ```
 //!
-//! It is neither necessary nor advised to implement the interface traits directly; instead,
-//! implement these base traits to extend casting functionality to new types.
+//! It is neither necessary nor advised to implement [`Cast`](crate::Cast) directly; instead,
+//! implement [`CastImpl`] to extend casting functionality to new types, and the follow-on extension
+//! traits ([`AssumedLossless`](crate::AssumedLossless) / [`Estimated`](crate::Estimated) /
+//! [`Lossless`](crate::Lossless) / [`Lossy`](crate::Lossy) / [`Saturated`](crate::Saturated)) as
+//! appropriate.
 
 /// Provides the base trait for [`Cast`](crate::Cast); implement this to extend
-/// [`Cast`](crate::Cast) to new types
+/// [`Cast`](crate::Cast) to new types.
 pub trait CastImpl<T> {
+    /// Specifies the error type returned from [`cast_impl`](CastImpl::cast_impl). Note that some
+    /// blanket implementations for the follow-on extension traits may apply if this is one of the
+    /// error types provided by this crate ([`LossyCastError`](crate::LossyCastError) /
+    /// [`FailedCastError`](crate::FailedCastError)).
     type Error;
 
     /// Casts `self` to type `T`; see [`Cast::cast`](crate::Cast::cast) for details and invariants

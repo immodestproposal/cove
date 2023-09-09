@@ -2,8 +2,7 @@
 #![warn(missing_docs)]
 
 //! # Cove: Casts Of Varying Elegance
-//! A collection of extension traits for improving the safety and maintainability of numerical
-//! casts.
+//! A collection of extension traits to improve the safety and maintainability of numerical casts.
 //!
 //! Cove's primary goals are:
 //! * **clarity**: the programmer's intention for a cast is clear from the name
@@ -38,12 +37,11 @@
 //! assert_eq!(-4.4f32.cast::<i16>().estimated(), -4i16);
 //! assert_eq!(-0.0f64.cast::<NonZeroI32>().estimated(), NonZeroI32::new(-1).unwrap());
 //!
-//! // If you are supremely confident a cast is lossless you can always use `unwrap_unchecked`
-//! // off the returned `Result`:
+//! // If you are supremely confident a cast is lossless you can always use unwrap_unchecked:
 //! assert_eq!(unsafe {90u32.cast::<u8>().unwrap_unchecked()}, 90);
 //!
-//! // ...but if that makes you uncomfortable you might prefer cove's `assumed_lossless`, which will
-//! // use a debug assertion instead of unsafe (and just be lossy in release builds):
+//! // ...but if the unsafeness makes you uncomfortable you might prefer cove's assumed_lossless,
+//! // which will use a debug_assert instead of unsafe (and just risk lossiness in release builds):
 //! assert_eq!(90u32.cast::<u8>().assumed_lossless(), 90);
 //!
 //! # Ok::<(), LossyCastError<i16, u8>>(())
@@ -54,7 +52,7 @@
 //! use cove::*;
 //! use core::num::{NonZeroU16, NonZeroU64};
 //!
-//! // If a number's type guarantees a lossless cast, you can of course always use `From`/`Into`:
+//! // If the types guarantee a lossless cast, you can of course always use `From`/`Into`:
 //! assert_eq!(NonZeroU64::from(NonZeroU16::new(12).unwrap()), NonZeroU64::new(12).unwrap());
 //!
 //! // ...but what if those traits aren't provided because the cast could be lossy on some other
@@ -63,13 +61,7 @@
 //! assert_eq!(31u64.cast::<usize>().lossless(), 31usize);
 //! ```
 
-//! ## Design and Motivation
-//! This crate provides extension traits for casting between numerical types, especially
-//! primitives and other cheaply-cloneable numeric types. Many of these traits parallel existing
-//! mechanisms such as [`From`]/[`Into`] or [`TryFrom`]/[`TryInto`], but offer differing semantics
-//! tailored to common use cases.
-//!
-//! # Motivation
+//! ## Motivation
 //! Given the existence of [`From`]/[`Into`]/[`TryFrom`]/[`TryInto`] and the `as` keyword, it is
 //! natural to ask what value additional numeric casting functionality could provide. The
 //! motivation is simple: the existing mechanisms, while perfectly serviceable, are
@@ -77,12 +69,44 @@
 //! creates an opportunity for improvements; though each improvement is minor, in codebases rife
 //! with casts they can collectively have an outsized effect.
 //!
-//! ### Definitions
-//! This crate uses the following terms:
+//! ### [`From`]/[`Into`]
+//! The [`From`]/[`Into`] traits are implemented for numeric casts which are guaranteed to be
+//! lossless on all supported platforms based on their types alone. This is a strong guarantee,
+//! and if these traits fit your use case you should think hard before picking anything else,
+//! including cove's casts. However, such a strong guarantee naturally comes with a limited scope;
+//! for the many use cases which do not conform, other casting mechanisms are required.
 //!
-//! * `numeric cast`: a type cast from one numerical type to another
-//! * `lossless cast`: a numeric cast where the casted value does not change when its type changes
-//! * `lossy cast`: a numeric cast where the casted value changes when its type changes
+//! ### [`TryFrom`]/[`TryInto`]
+//! The [`TryFrom`]/[`TryInto`] traits are provided for numeric casts which might be lossy, to
+//! allow for testing of this lossiness at runtime. This covers many of the use cases unaddressed
+//! by [`From`]/[`Into`], but not all. For example:
+//!
+//! * Some conversions which might be expected are simply not provided, such as from floating
+//!     points to integers
+//! * If the cast is lossy but you want to use whatever it produces anyway, [`TryFrom`]/[`TryInto`]
+//!     can't help
+//! * If the cast is lossy but you want as close as it can get, [`TryFrom`]/[`TryInto`] can't help
+//! * If the cast is lossy and you want good error messages, [`TryFrom`]/[`TryInto`]'s errors tend
+//!     to disappoint
+//! * If you know a cast is lossless, you are stuck with suboptimal options:
+//!     * Risk the unsafeness of [`unwrap_unchecked`](Result::unwrap_unchecked)
+//!     * Absorb the performance cost of [`unwrap`](Result::unwrap)
+//!     * Absorb the performance cost and polluted interface implied by returning a [`Result`]
+//!
+//! ### `as` Keyword
+//! The use cases not covered by [`From`]/[`Into`]/[`TryFrom`]/[`TryInto`] are generally left to the
+//! `as` keyword. This is unfortunately a fairly blunt instrument which requires paying careful
+//! attention to the semantics of numeric casts to ensure correct use. For this reason, usage of
+//! `as` for numeric casts often triggers complaints from linters, such as when using clippy in
+//! pedantic mode. Moreover, since `as` is not a trait it is quite difficult to use it in generic
+//! contexts.
+//!
+//! In general it is a good idea to avoid the `as` keyword for numeric casts, at least in the
+//! presence of better options. This crate aims to provide those better options.
+//!
+//! ## Usage
+//! Cove's casts all start off with the `
+
 //!
 //! ### Use Cases
 //! Numeric casts can be sorted into the following use cases:

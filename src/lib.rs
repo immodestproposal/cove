@@ -1,6 +1,69 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 
+//! # Cove: Casts Of Varying Elegance
+//! A collection of extension traits for improving the safety and maintainability of numerical
+//! casts.
+//!
+//! Cove's primary goals are:
+//! * **clarity**: the programmer's intention for a cast is clear from the name
+//! * **correctness**: suspicious casts via `as` can be reduced or eliminated altogether
+//! * **performance**: in release builds, cove's casts generally compile down to the same
+//! assembly as manual implementations
+//!
+//! ## Quick Usage
+//! ```
+//! use cove::*;
+//! use core::num::{NonZeroI8, NonZeroI32};
+//!
+//! // Check whether a cast is lossy at runtime
+//! assert_eq!(8i16.cast::<u8>()?, 8u8);
+//! assert!(0u128.cast::<NonZeroI8>().is_err());
+//!
+//! // Of course, turbofish disambiguation is unnecessary if the compiler can deduce the type:
+//! fn foo(x: u8) -> u8 {x}
+//! assert_eq!(foo(2i16.cast()?), 2u8);
+//!
+//! // If the cast ends up being lossy, you can usually still use the lossy value if you like:
+//! assert_eq!(9.2f64.cast::<usize>().unwrap_err().to, 9usize);
+//!
+//! // ...or more concisely:
+//! assert_eq!(9.2f64.cast::<usize>().lossy(), 9usize);
+//!
+//! // Perhaps you don't mind if the cast is lossy, but you'd like to saturate to the target type:
+//! assert_eq!(300u32.cast::<u8>().saturated(), 255u8);
+//! assert_eq!((-7isize).cast::<u16>().saturated(), 0u16);
+//!
+//! // ...or maybe an estimate is acceptable:
+//! assert_eq!(-4.4f32.cast::<i16>().estimated(), -4i16);
+//! assert_eq!(-0.0f64.cast::<NonZeroI32>().estimated(), NonZeroI32::new(-1).unwrap());
+//!
+//! // If you are supremely confident a cast is lossless you can always use `unwrap_unchecked`
+//! // off the returned `Result`:
+//! assert_eq!(unsafe {90u32.cast::<u8>().unwrap_unchecked()}, 90);
+//!
+//! // ...but if that makes you uncomfortable you might prefer cove's `assumed_lossless`, which will
+//! // use a debug assertion instead of unsafe (and just be lossy in release builds):
+//! assert_eq!(90u32.cast::<u8>().assumed_lossless(), 90);
+//!
+//! # Ok::<(), LossyCastError<i16, u8>>(())
+//! ```
+
+#![cfg_attr(target_pointer_width = "64", doc = "```")]
+#![cfg_attr(not(target_pointer_width = "64"), doc = "```compile_fail")]
+//! use cove::*;
+//! use core::num::{NonZeroU16, NonZeroU64};
+//!
+//! // If a number's type guarantees a lossless cast, you can of course always use `From`/`Into`:
+//! assert_eq!(NonZeroU64::from(NonZeroU16::new(12).unwrap()), NonZeroU64::new(12).unwrap());
+//!
+//! // ...but what if those traits aren't provided because the cast could be lossy on some other
+//! // platform? If you don't mind losing portability, try out cove's `lossless`. This will only
+//! // compile on platforms where usize is at least 64 bits:
+//! assert_eq!(31u64.cast::<usize>().lossless(), 31usize);
+//! ```
+
+//! ## Design and Motivation
 //! This crate provides extension traits for casting between numerical types, especially
 //! primitives and other cheaply-cloneable numeric types. Many of these traits parallel existing
 //! mechanisms such as [`From`]/[`Into`] or [`TryFrom`]/[`TryInto`], but offer differing semantics
@@ -95,7 +158,6 @@
 
 // TODO: tests (both std and no_std)
 // TODO: re-document everything:
-// TODO:    * up-front quick usage examples
 // TODO:    * performance notes
 // TODO:    * small example of using traits in a generic context
 // TODO:    * full example of extending Cast (reference it from the CastImpl docs)

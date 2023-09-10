@@ -81,8 +81,8 @@
 //! allow for testing of this lossiness at runtime. This covers many of the use cases unaddressed
 //! by [`From`]/[`Into`], but not all. For example:
 //!
-//! * Some conversions which might be expected are simply not provided, such as from floating
-//!     points to integers
+//! * Some conversions which might be desired are not provided, such as from floating points to
+//!     integers
 //! * If the cast is lossy but you want to use whatever it produces anyway, [`TryFrom`]/[`TryInto`]
 //!     can't help
 //! * If the cast is lossy but you want as close as it can get, [`TryFrom`]/[`TryInto`] can't help
@@ -98,15 +98,43 @@
 //! `as` keyword. This is unfortunately a fairly blunt instrument which requires paying careful
 //! attention to the semantics of numeric casts to ensure correct use. For this reason, usage of
 //! `as` for numeric casts often triggers complaints from linters, such as when using clippy in
-//! pedantic mode. Moreover, since `as` is not a trait it is quite difficult to use it in generic
-//! contexts.
+//! pedantic mode.
 //!
-//! In general it is a good idea to avoid the `as` keyword for numeric casts, at least in the
-//! presence of better options. This crate aims to provide those better options.
+//! Since `as` is not a trait it is quite difficult to use it in generic contexts. Moreover, due to
+//! being overloaded for other type casts it can be more challenging to search its usages for
+//! possible sources of numeric cast bugs. In general it is a good idea to avoid the `as` keyword
+//! for numeric casts, at least in the presence of better options. This crate aims to provide those
+//! better options.
+//!
+//! ### Features
+//! Cove supports one feature, `std`, which is included in the default features. Enabling this
+//! feature (or rather, failing to disable it) enables support for the Rust standard library.
+//! If this is disabled, cove depends only on the Rust core library. The only difference is that
+//! with `std` enabled, cove's error types implement [`std::error::Error`]; otherwise they do not.
 //!
 //! ## Usage
-//! Cove's casts all start off with the `
-
+//! All cove casts begin with a call to [`Cast::cast`]:
+//! ```
+//! use cove::Cast;
+//!
+//! // Turbofish disambiguation of the target type is required in this example, but not
+//! // necessarily in other cases.
+//! assert_eq!(10u32.cast::<i32>()?, 10i32);
+//! # Ok::<(), cove::LossyCastError<u32, i32>>(())
+//! ```
+//! Just as with [`TryFrom`]/[`TryInto`], this basic usage returns a [`Result`] which may be
+//! interrogated like any [`Result`]. While the returned error is generally a little more useful
+//! than that returned by [`TryFrom`]/[`TryInto`], the primary value of the cove casts is not
+//! realized until the next step: using the follow-on extension traits.
+//!
+//! ### Follow-on Extension Traits
+//!
+//! #### Lossless
+//! #### Lossy
+//! #### AssumedLossless
+//! #### Saturated
+//! #### Estimated
+//! -----------------------
 //!
 //! ### Use Cases
 //! Numeric casts can be sorted into the following use cases:

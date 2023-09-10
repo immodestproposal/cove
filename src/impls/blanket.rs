@@ -3,9 +3,9 @@
 use crate::casts::{AssumedLossless, Closest, Lossless, Lossy, Saturated};
 use crate::errors::{FailedCastError, LossyCastError};
 use super::LosslessCast;
-use core::fmt::Display;
+use core::fmt::Debug;
 
-impl<CastFrom: Display, CastTo: Display> AssumedLossless<CastTo>
+impl<CastFrom: Debug, CastTo: Debug> AssumedLossless<CastTo>
 for Result<CastTo, LossyCastError<CastFrom, CastTo>> {
     #[inline]
     fn assumed_lossless(self) -> CastTo {
@@ -13,7 +13,7 @@ for Result<CastTo, LossyCastError<CastFrom, CastTo>> {
             // Should not arrive here; panic in a debug build
             debug_assert!(
                 false,
-                "Lossy cast was assumed to be lossless [{} ({}) -> {} ({})]",
+                "Lossy cast was assumed to be lossless [{:?} ({}) -> {:?} ({})]",
                 error.from, stringify!(CastFrom),
                 error.to, stringify!(CastTo)
             );

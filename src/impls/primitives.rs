@@ -100,15 +100,15 @@ macro_rules! cast {
                     #[cfg(feature = "std")] {
                         // We have access to std so use the built-in round() function (which uses a
                         // compiler intrinsic in its turn)
-                        self.from.rounded() as $to
+                        self.from.round() as $to
                     }
 
                     #[cfg(not(feature = "std"))] {
-                        // We lack access to std so we must implement our own (almost certainly
-                        // slower) round() function
-                        todo!()
-                        //self.from as $to
-                        //(self.from - 0.5) as $to
+                        // We lack access to std so we must implement our own slower round()
+                        match self.from.is_sign_positive() {
+                            true => (self.from + 0.5) as $to,
+                            false => (self.from - 0.5) as $to
+                        }
                     }
                 }
             }

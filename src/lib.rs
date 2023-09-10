@@ -143,7 +143,7 @@
 //!     * Does not guarantee portability; compiling on a target platform does not imply compiling on
 //!         all platforms
 //!     * Akin to [`From`]/[`Into`] but trades off portability guarantees for a broader scope (e.g.
-//!         support for `usize`/`isize`)
+//!         support for [`usize`]/[`isize`])
 //!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
 //! * [`Lossy`](casts::Lossy): for casts where lossiness is acceptable with no general guarantees
 //!     on the accuracy
@@ -210,34 +210,69 @@
 //! ### Features
 //! Cove supports one feature, `std`, which is included in the default features. Enabling this
 //! feature (or rather, failing to disable it) enables support for the Rust standard library.
-//! If this is disabled, cove depends only on the Rust core library. The only difference is that
-//! with `std` enabled, cove's error types implement [`std::error::Error`]; otherwise they do not.
+//! If this is disabled, cove depends only on the Rust core library.
 //!
-//! ### Recommendations
+//! Enabling `std` causes cove's error types to implement [`std::error::Error`]; otherwise they do
+//! not, as at the time of writing [`core::error::Error`] is unstable. In addition, some cast
+//! implementations are controlled by this feature, as the rust standard library allows for
+//! optimizations via intrinsics not available in stable [`core`].
 //!
+//! ### Supported Casts
+//! Not all follow-on cast types make sense for all numerical conversions; attempting to use an
+//! unsupported cast will result in a compilation error. Refer to the documentation for the
+//! individual casts for details, but as quick rules of thumb:
 //!
-//! ## Supported Casts
+//! * [`Cast`](casts::Cast) and [`Closest`](casts::Closest) are supported for all casts between all
+//!     primitive numerical types as well as the NonZero* family of non-zero integers from
+//!     [`core::num`].
+//! * [`Lossy`](casts::Lossy) and [`AssumedLossless`](casts::AssumedLossless) are supported
+//!     whenever the target type is a primitive.
+//! * [`Saturated`](casts::Saturated) is supported when the origin type is an integer (including
+//!     NonZero* integers) and the target type is a primitive integer or an unsigned NonZero*
+//!     integer.
+//! * [`Lossless`](casts::Lossless) is supported whenever [`From`]/[`Into`] is supported as well
+//!     as to/from [`usize`] / [`isize`] / [`NonZeroUsize`](core::num::NonZeroUsize) /
+//!     [`NonZeroIsize`](core::num::NonZeroIsize) when this is guaranteed lossless on the target
+//!     platform.
+//!
+//! ### Guidelines
+//! It can be challenging to determine which type of cast to use in which circumstances. While one
+//! size rarely fits all in software, here are some quick guidelines which might be useful:
+//!
+//! * If [`From`]/[`Into`] are provided for your use case, use those instead of any of cove's casts
+//! * Otherwise, if you are writing an interface to be consumed by a third party:
+//!     * Consider whether you really want any form of fallible casting in the interface; it
+//!         might be better to just take the target type
+//!     * If possible, favor [`TryFrom`]/[`TryInto`] over any of cove's casts to avoid introducing
+//!         interface dependencies
+//! * Otherwise, favor cove's casts over [`TryFrom`]/[`TryInto`] or the `as` keyword:
+//!     * Favor [`Lossless`](casts::Lossless) if provided for your use case and you'd rather
+//!         detect portability errors at compile time than runtime
+//!     * Favor [`AssumedLossless`](casts::AssumedLossless) if confident the cast will always be
+//!         lossless
+//!     * Favor [`Cast`](casts::Cast) with error handling if only lossless casts should proceed
+//!     * Favor [`Saturated`](casts::Saturated) if provided for your use case and best-effort
+//!         lossiness is acceptable
+//!     * Favor [`Closest`](casts::Closest) if [`Saturated`](casts::Saturated) is not provided
+//!         for your use case and best-effort lossiness is acceptable
+//!     * Use [`Lossy`](casts::Lossy) as a last resort when performance is critical and
+//!         lossiness is acceptable; favor this over the `as` keyword
+//!         * Exception: in some const contexts it may be necessary to use the `as` keyword,
+//!              since const trait support is limited
+//!
 //! ### Extending Support
+//! Extending cove's casts to new types involves implementing [`base::CastImpl`]; see the
+//! documentation for [`base`] for more details.
 //!
 //! ## Performance
-
-// | Use Case                      | Clean Standard Mechanism                          |
-// | ---                           | ---                                               |
-// | lossless: portable            | [`From`]/[`Into`]                                 |
-// | lossless: non-portable        | ???                                               |
-// | lossy: no detection           | `as` keyword                                      |
-// | lossy: detection, details     | ???                                               |
-// | lossy: detection, no details  | [`TryFrom`]/[`TryInto`] (except floating point)   |
-
 
 // TODO: tests (both std and no_std)
 // TODO: re-document everything:
 // TODO:    * performance notes
 // TODO:    * small example of using traits in a generic context
 // TODO:    * full example of extending Cast (reference it from the CastImpl docs)
-// TODO:    * comparison with standard casting methodologies
-// TODO:    * table of support for each follow-on extension trait
-// TODO:    * lib.rs, casts
+// TODO:    * lib.rs, casts.rs, errors.rs
+// TODO:    * re-read all docs for correctness
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
 // TODO: fill out cargo.toml more, fill out readme
 // TODO: solicit feedback, possibly take feedback, publish a 1.0

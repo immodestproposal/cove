@@ -102,7 +102,7 @@ pub trait Saturated<T> {
 /// Extension trait for infallibly casting between numerical types
 ///
 /// This is spiritually similar to [`From`]/[`Into`] but differs slightly. The main difference is
-/// that this works with `usize`/`isize` on a per-platform basis. For example, on a 64-bit platform
+/// that this works with [`usize`]/[`isize`] on a per-platform basis. For example, on a 64-bit platform
 /// this may be used to cast a u64 to a usize, while on a 32-bit platform the same cast will not
 /// compile. So where [`From`]/[`Into`] are most concerned with cross-platform portability,
 /// `LosslessCast` is more interested in providing casts on the target platform. Be aware of this

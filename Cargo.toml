@@ -9,5 +9,5 @@ Casts Of Varying Elegance (COVE): extension traits for casting numerical types
 """
 
 [features]
-# default = ["std"]
+default = ["std"]
 std = []

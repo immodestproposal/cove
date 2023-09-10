@@ -97,7 +97,19 @@ macro_rules! cast {
                 fn closest(self) -> $to {
                     // For float-to-int we must first round the number, then use the raw cast. If we
                     // don't round first the default will round towards zero.
-                    self.from.round() as $to
+                    #[cfg(feature = "std")] {
+                        // We have access to std so use the built-in round() function (which uses a
+                        // compiler intrinsic in its turn)
+                        self.from.rounded() as $to
+                    }
+
+                    #[cfg(not(feature = "std"))] {
+                        // We lack access to std so we must implement our own (almost certainly
+                        // slower) round() function
+                        todo!()
+                        //self.from as $to
+                        //(self.from - 0.5) as $to
+                    }
                 }
             }
         )*

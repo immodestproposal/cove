@@ -105,12 +105,6 @@
 //! for numeric casts, at least in the presence of better options. This crate aims to provide those
 //! better options.
 //!
-//! ### Features
-//! Cove supports one feature, `std`, which is included in the default features. Enabling this
-//! feature (or rather, failing to disable it) enables support for the Rust standard library.
-//! If this is disabled, cove depends only on the Rust core library. The only difference is that
-//! with `std` enabled, cove's error types implement [`std::error::Error`]; otherwise they do not.
-//!
 //! ## Usage
 //! Cove provides a [`prelude`] module to assist with importing the requisite extension traits.
 //! Most applications of cove will not require `use`ing anything more.
@@ -180,79 +174,61 @@
 //!     ```
 //!     * **NOT** zero-overhead: generally involves one or more extra branches over the `as`
 //!         keyword, especially with floats
-//! -----------------------
 //!
-//! ### Use Cases
-//! Numeric casts can be sorted into the following use cases:
+//! ### Errors
+//! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. In
+//! practice, cove provides two error types which are actually used for casts:
 //!
-//! * The compiler can prove that the cast is lossless from types alone, regardless of the target
-//! platform. For example, a u8 ⮕ u16 cast must be lossless on all platforms. Let's call this
-//! `lossless: portable`.
-//! * The compiler can prove that the cast is lossless from types alone on the target platform,
-//! but it may not be on a different platform. For example, a u64 ⮕ usize cast must be lossless
-//! on a 64-bit platform, but it may not be on a 32-bit platform. Let's call this `lossless:
-//! non-portable`.
-//! * The cast is not provably lossless but it does not matter whether it is. Let's call this
-//! `lossy: no detection`.
-//! * The cast is not provably lossless. It is important to detect whether it is lossy and, if so,
-//! to obtain the details of the lossiness (such as the lossy value itself). Let's call this `lossy:
-//! detection, details`.
-//! * The cast is not provably lossless. It is important to detect whether it is lossy; however, the
-//! details of the lossiness (such as the lossy value itself) are unimportant. Let's call this
-//! `lossy: detection, no details`.
+//! * [`LossyCastError`](errors::LossyCastError): for lossy casts which are able to represent the
+//! lossy value as the target type
+//!     * Used in most of cove's casts
+//!     * Allows for retrieving the origin and target values via the `from` and `to` member fields:
+//!     ```
+//!     # use cove::prelude::*;
+//!     assert_eq!(260u32.cast::<u8>().unwrap_err().from, 260u32);
+//!     assert_eq!(260u32.cast::<u8>().unwrap_err().to, 4u8);
+//!     ```
+//!     * Provides a descriptive message
+//!         * e.g. `"Numerical cast was lossy [260 (u32) -> 4 (u8)]"`
+//! * [`FailedCastError`](errors::FailedCastError): for lossy casts which are unable to represent
+//! the lossy value as the target type
+//!     * Used for certain NonZero casts, where representing e.g.
+//!         [`NonZeroUsize`](core::num::NonZeroUsize) in the error type could invoke undefined
+//!         behavior
+//!     * Allows for retrieving the origin (but not target) value via the `from` member field:
+//!     ```
+//!     # use cove::prelude::*;
+//!     # use std::num::NonZeroU8;
+//!     assert_eq!(0u32.cast::<NonZeroU8>().unwrap_err().from, 0u32);
+//!     ```
+//!     * Provides as descriptive an error message as possible
+//!         * e.g. `"Numerical cast failed [0 (u32) -> (core::num::nonzero::NonZeroU8)]"`
 //!
-//! The existing standard mechanisms for casting cleanly cover some of these use cases, but not
-//! all, as shown here:
+//! Note that it is not necessary to interact explicitly with these error types in many cases,
+//! such as when using the follow-on extension traits; thus, they are not included in the prelude.
 //!
-//! | Use Case                      | Clean Standard Mechanism                          |
-//! | ---                           | ---                                               |
-//! | lossless: portable            | [`From`]/[`Into`]                                 |
-//! | lossless: non-portable        | ???                                               |
-//! | lossy: no detection           | `as` keyword                                      |
-//! | lossy: detection, details     | ???                                               |
-//! | lossy: detection, no details  | [`TryFrom`]/[`TryInto`] (except floating point)   |
+//! ### Features
+//! Cove supports one feature, `std`, which is included in the default features. Enabling this
+//! feature (or rather, failing to disable it) enables support for the Rust standard library.
+//! If this is disabled, cove depends only on the Rust core library. The only difference is that
+//! with `std` enabled, cove's error types implement [`std::error::Error`]; otherwise they do not.
 //!
-//! The missing rows can be fulfilled less cleanly through use of workarounds such as the `as`
-//! keyword, which (as noted) is also the best standard mechanism for lossy casts without details.
-//! Using this keyword for numeric casts is problematic for a few reasons:
+//! ### Recommendations
 //!
-//! * It is a blunt instrument, forcing a conversion that the programmer has to verify is
-//! acceptable. This makes it a potential source of bugs.
-//! * It isn't self-documenting; that is, if a maintainer sees a lossy numerical cast via `as`,
-//! it may not be clear whether the original programmer noticed and deemed the potential lossiness
-//! acceptable or merely overlooked it.
-//! * It is overloaded for all manner of casts, not just numerical ones. This increases the
-//! search space when hunting for invalid numerical casts with a simple text search.
-//! * It is not a trait, and therefore can be difficult to employ in generic contexts.
 //!
-//! As a consequence of these issues, it is usually a good idea to avoid the `as` keyword for
-//! numerical casts, at least in the presence of better options. This crate aims to provide those
-//! better options.
+//! ## Supported Casts
+//! ### Extending Support
 //!
-//! With this crate in play, the revised table looks like this:
-//!
-//! | Use Case                      | Recommended Mechanism                 |
-//! | ---                           | ---                                   |
-//! | lossless: portable            | [`From`]/[`Into`]                     |
-//! | lossless: non-portable        | [`LosslessCast`]                      |
-//! | lossy: no detection           | [`LossyCast`]                         |
-//! | lossy: detection, details     | [`Cast`]                              |
-//! | lossy: detection, no details  | [`Cast`] (supports floating point)    |
-//!
-//! ### Floating Point
-//! Perhaps surprisingly, the standard traits [`TryFrom`]/[`TryInto`] are not supported for many
-//! conversions between integer types and floating point types. This crate supports casting between
-//! these types.
-//!
-//! ### Saturate
-//! [`Cast`] supports saturating its result through the [`Saturate`] trait, which is defined by
-//! default for integer to integer conversions. This provides a convenient yet explicit mechanism
-//! for casting to the closest target value.
-//!
-//! ### `NonZero`
-//! Built-in support for casting to and from the `std::num::NonZero`* family is planned but not yet
-//! implemented. It may be implemented externally by extending the base casting traits in
-//! [`cove::base`](crate::base).
+//! ## Performance
+
+// | Use Case                      | Clean Standard Mechanism                          |
+// | ---                           | ---                                               |
+// | lossless: portable            | [`From`]/[`Into`]                                 |
+// | lossless: non-portable        | ???                                               |
+// | lossy: no detection           | `as` keyword                                      |
+// | lossy: detection, details     | ???                                               |
+// | lossy: detection, no details  | [`TryFrom`]/[`TryInto`] (except floating point)   |
+
 
 // TODO: tests (both std and no_std)
 // TODO: re-document everything:

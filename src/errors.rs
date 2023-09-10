@@ -18,8 +18,8 @@ impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, Ca
         write!(
             formatter,
             "Numerical cast was lossy [{} ({}) -> {} ({})]",
-            self.from, stringify!(CastFrom),
-            self.to, stringify!(CastTo)
+            self.from, core::any::type_name::<CastFrom>(),
+            self.to, core::any::type_name::<CastTo>()
         )
     }
 }
@@ -54,8 +54,8 @@ impl<CastFrom: Display, CastTo> Display for FailedCastError<CastFrom, CastTo> {
             formatter,
             "Numerical cast failed [{} ({}) -> ({})]",
             self.from,
-            stringify!(CastFrom),
-            stringify!(CastTo)
+            core::any::type_name::<CastFrom>(),
+            core::any::type_name::<CastTo>()
         )
     }
 }

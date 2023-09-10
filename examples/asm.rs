@@ -16,7 +16,8 @@
 //! so, but there would be less certainty that the results are useful in the face of aggressive
 //! optimizations.
 
-use cove::{AssumedLossless, Cast, Lossless, Lossy, LossyCastError};
+use cove::prelude::*;
+use cove::errors::LossyCastError;
 use cove::base::CastImpl;
 
 /// Integer-to-integer narrowing conversions for comparing generated ASM; use

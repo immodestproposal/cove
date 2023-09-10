@@ -2,7 +2,8 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::cast::{Cast, Estimated, LossyCastError, Saturated};
+use crate::casts::{Cast, Estimated, Saturated};
+use crate::errors::LossyCastError;
 use crate::base::CastImpl;
 use super::LosslessCast;
 

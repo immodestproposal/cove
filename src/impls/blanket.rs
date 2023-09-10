@@ -1,9 +1,7 @@
 //! This module provides blanket implementations of certain casting traits where applicable
 
-use crate::cast::{
-    AssumedLossless, Estimated, FailedCastError, Lossless, Lossy, LossyCastError, Saturated
-};
-
+use crate::casts::{AssumedLossless, Estimated, Lossless, Lossy, Saturated};
+use crate::errors::{FailedCastError, LossyCastError};
 use super::LosslessCast;
 use core::fmt::Display;
 

@@ -12,7 +12,7 @@
 //!
 //! ## Quick Usage
 //! ```
-//! use cove::*;
+//! use cove::prelude::*;
 //! use core::num::{NonZeroI8, NonZeroI32};
 //!
 //! // Check whether a cast is lossy at runtime
@@ -44,12 +44,12 @@
 //! // which will use a debug_assert instead of unsafe (and just risk lossiness in release builds):
 //! assert_eq!(90u32.cast::<u8>().assumed_lossless(), 90);
 //!
-//! # Ok::<(), LossyCastError<i16, u8>>(())
+//! # Ok::<(), cove::errors::LossyCastError<i16, u8>>(())
 //! ```
 
 #![cfg_attr(target_pointer_width = "64", doc = "```")]
 #![cfg_attr(not(target_pointer_width = "64"), doc = "```compile_fail")]
-//! use cove::*;
+//! use cove::prelude::*;
 //! use core::num::{NonZeroU16, NonZeroU64};
 //!
 //! // If the types guarantee a lossless cast, you can of course always use `From`/`Into`:
@@ -115,20 +115,28 @@
 //! ## Usage
 //! All cove casts begin with a call to [`Cast::cast`]:
 //! ```
-//! use cove::Cast;
+//! use cove::prelude::*;
 //!
 //! // Turbofish disambiguation of the target type is required in this example, but not
 //! // necessarily in other cases.
 //! assert_eq!(10u32.cast::<i32>()?, 10i32);
-//! # Ok::<(), cove::LossyCastError<u32, i32>>(())
+//! # Ok::<(), cove::errors::LossyCastError<u32, i32>>(())
 //! ```
 //! Just as with [`TryFrom`]/[`TryInto`], this basic usage returns a [`Result`] which may be
 //! interrogated like any [`Result`]. While the returned error is generally a little more useful
-//! than that returned by [`TryFrom`]/[`TryInto`], the primary value of the cove casts is not
-//! realized until the next step: using the follow-on extension traits.
+//! than that returned by [`TryFrom`]/[`TryInto`], the full value of the cove casts is not realized
+//! until the next step: using the follow-on extension traits.
 //!
 //! ### Follow-on Extension Traits
+//! Cove defines a number of extension traits which are implemented for the [`Result`] returned
+//! from calling [`Cast::cast`] and well as for its contained error types. A typical cove usage,
+//! therefore, involves calling [`Cast::cast`] and then immediately calling one of the follow-on
+//! extension traits on its [`Result`]:
+//! ```
 //!
+//! ```
+//! practice, this
+//! means that the typical use of
 //! #### Lossless
 //! #### Lossy
 //! #### AssumedLossless
@@ -215,14 +223,14 @@
 // TODO:    * full example of extending Cast (reference it from the CastImpl docs)
 // TODO:    * comparison with standard casting methodologies
 // TODO:    * table of support for each follow-on extension trait
-// TODO:    * lib.rs, cast.rs
+// TODO:    * lib.rs, casts
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
 // TODO: fill out cargo.toml more, fill out readme
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 
-mod cast;
 mod impls;
 
 pub mod base;
-
-pub use cast::*;
+pub mod casts;
+pub mod errors;
+pub mod prelude;

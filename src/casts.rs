@@ -1,7 +1,5 @@
 
 use crate::base::CastImpl;
-use core::fmt::{Debug, Display, Formatter};
-use core::marker::PhantomData;
 
 /// Extension trait for fallibly casting between numerical types with error detection
 ///
@@ -19,7 +17,7 @@ pub trait Cast {
     ///
     /// # Examples
     /// ```
-    /// use cove::Cast;
+    /// use cove::prelude::*;
     ///
     /// // Call a function `foo` via a cast; no type disambiguation required in this case
     /// fn foo(x: u8) -> u8 {x}
@@ -27,28 +25,28 @@ pub trait Cast {
     ///
     /// // Explicit disambiguation via turbofish required in this case
     /// assert_eq!(7u32.cast::<u8>()?, 7u8);
-    /// # Ok::<(), cove::LossyCastError<u32, u8>>(())
+    /// # Ok::<(), cove::errors::LossyCastError<u32, u8>>(())
     /// ```
     ///
     /// ```
-    /// use cove::Cast;
+    /// use cove::prelude::*;
     ///
     /// // Cast a float to an integer losslessly
     /// assert_eq!(6f64.cast::<i8>()?, 6);
-    /// # Ok::<(), cove::LossyCastError<f64, i8>>(())
+    /// # Ok::<(), cove::errors::LossyCastError<f64, i8>>(())
     /// ```
     ///
     /// ```
-    /// use cove::Cast;
+    /// use cove::prelude::*;
     ///
     /// // Cast a float to an integer lossily, extracting the lossy value from the error
     /// assert_eq!(6.3f32.cast::<i32>().unwrap_err().to, 6);
-    /// # Ok::<(), cove::LossyCastError<f32, i32>>(())
+    /// # Ok::<(), cove::errors::LossyCastError<f32, i32>>(())
     /// ```
     ///
     /// ```
     /// # fn foo() -> Option<()> {
-    /// use cove::Cast;
+    /// use cove::prelude::*;
     /// use core::num::{NonZeroU8, NonZeroU32};
     ///
     /// // Cast a NonZeroU8 to NonZeroU32 losslessly
@@ -78,7 +76,7 @@ pub trait Saturated<T> {
     ///
     /// # Examples
     /// ```
-    /// use cove::{Cast, Saturated};
+    /// use cove::prelude::*;
     ///
     /// // Call a function `foo` via a cast; no type disambiguation required in this case
     /// fn foo(x: u8) -> u8 {x}
@@ -113,7 +111,7 @@ pub trait Saturated<T> {
 pub trait Lossless<T> {
     /// # Examples
     /// ```
-    /// use cove::{Cast, Lossless};
+    /// use cove::prelude::*;
     ///
     /// // Call a function `foo` via a lossless cast; no type disambiguation required in this case
     /// fn foo(x: u32) -> u32 {x}
@@ -139,7 +137,7 @@ pub trait Lossless<T> {
     ///
     #[cfg_attr(target_pointer_width = "64", doc = "```")]
     #[cfg_attr(not(target_pointer_width = "64"), doc = "```compile_fail")]
-    /// use cove::{Cast, Lossless};
+    /// use cove::prelude::*;
     ///
     /// // Cast a u64 to usize; compiles on platforms where usize is 64 bits, but not 16 or 32
     /// assert_eq!(8u64.cast::<usize>().lossless(), 8usize);
@@ -148,7 +146,7 @@ pub trait Lossless<T> {
     ///
     #[cfg_attr(any(target_pointer_width = "16", target_pointer_width = "32"), doc = "```")]
     #[cfg_attr(not(any(target_pointer_width = "16", target_pointer_width = "32")), doc = "```compile_fail")]
-    /// use cove::{Cast, Lossless};
+    /// use cove::prelude::*;
     ///
     /// // Cast an isize to i32; compiles on platforms where isize is 16 or 32 bits, but not 64
     /// assert_eq!(8isize.cast::<i32>().lossless(), 8usize);
@@ -173,7 +171,7 @@ pub trait Lossy<T> {
     ///
     /// # Examples
     /// ```
-    /// use cove::{Cast, Lossy};
+    /// use cove::prelude::*;
     ///
     /// // Call a function `foo` via a cast; no type disambiguation required in this case
     /// fn foo(x: u8) -> u8 {x}
@@ -195,66 +193,3 @@ pub trait Estimated<T> {
 pub trait AssumedLossless<T> {
     fn assumed_lossless(self) -> T;
 }
-
-// -- LossyCastError -- //
-
-/// Indicates that a cast between numeric types lost data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct LossyCastError<CastFrom, CastTo> {
-    /// The original value before the cast
-    pub from: CastFrom,
-
-    /// The value after the cast
-    pub to: CastTo
-}
-
-impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, CastTo> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            formatter,
-            "Numerical cast was lossy [{} ({}) -> {} ({})]",
-            self.from, stringify!(CastFrom),
-            self.to, stringify!(CastTo)
-        )
-    }
-}
-
-#[cfg(feature = "std")]
-impl<CastFrom: Debug + Display, CastTo: Debug + Display>
-std::error::Error for LossyCastError<CastFrom, CastTo> {}
-
-// -- FailedCastError -- //
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct FailedCastError<CastFrom, CastTo> {
-    /// The original value before the cast
-    pub from: CastFrom,
-
-    // -- Implementation -- //
-    to: PhantomData<CastTo>
-}
-
-impl<CastFrom, CastTo> FailedCastError<CastFrom, CastTo> {
-    pub fn new(source: CastFrom) -> Self {
-        Self {
-            from: source,
-            to: PhantomData
-        }
-    }
-}
-
-impl<CastFrom: Display, CastTo> Display for FailedCastError<CastFrom, CastTo> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            formatter,
-            "Numerical cast failed [{} ({}) -> ({})]",
-            self.from,
-            stringify!(CastFrom),
-            stringify!(CastTo)
-        )
-    }
-}
-
-#[cfg(feature = "std")]
-impl<CastFrom: Debug + Display, CastTo: Debug>
-std::error::Error for FailedCastError<CastFrom, CastTo> {}

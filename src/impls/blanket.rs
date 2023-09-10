@@ -1,6 +1,6 @@
 //! This module provides blanket implementations of certain casting traits where applicable
 
-use crate::casts::{AssumedLossless, Estimated, Lossless, Lossy, Saturated};
+use crate::casts::{AssumedLossless, Closest, Lossless, Lossy, Saturated};
 use crate::errors::{FailedCastError, LossyCastError};
 use super::LosslessCast;
 use core::fmt::Display;
@@ -24,19 +24,19 @@ for Result<CastTo, LossyCastError<CastFrom, CastTo>> {
     }
 }
 
-impl<CastFrom, CastTo> Estimated<CastTo> for Result<CastTo, LossyCastError<CastFrom, CastTo>>
-where LossyCastError<CastFrom, CastTo> : Estimated<CastTo> {
+impl<CastFrom, CastTo> Closest<CastTo> for Result<CastTo, LossyCastError<CastFrom, CastTo>>
+where LossyCastError<CastFrom, CastTo> : Closest<CastTo> {
     #[inline]
-    fn estimated(self) -> CastTo {
-        self.unwrap_or_else(Estimated::estimated)
+    fn closest(self) -> CastTo {
+        self.unwrap_or_else(Closest::closest)
     }
 }
 
-impl<CastFrom, CastTo> Estimated<CastTo> for Result<CastTo, FailedCastError<CastFrom, CastTo>>
-    where FailedCastError<CastFrom, CastTo> : Estimated<CastTo> {
+impl<CastFrom, CastTo> Closest<CastTo> for Result<CastTo, FailedCastError<CastFrom, CastTo>>
+    where FailedCastError<CastFrom, CastTo> : Closest<CastTo> {
     #[inline]
-    fn estimated(self) -> CastTo {
-        self.unwrap_or_else(Estimated::estimated)
+    fn closest(self) -> CastTo {
+        self.unwrap_or_else(Closest::closest)
     }
 }
 

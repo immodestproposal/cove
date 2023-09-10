@@ -33,9 +33,9 @@
 //! assert_eq!(300u32.cast::<u8>().saturated(), 255u8);
 //! assert_eq!((-7isize).cast::<u16>().saturated(), 0u16);
 //!
-//! // ...or maybe an estimate is acceptable:
-//! assert_eq!(-4.4f32.cast::<i16>().estimated(), -4i16);
-//! assert_eq!(-0.0f64.cast::<NonZeroI32>().estimated(), NonZeroI32::new(-1).unwrap());
+//! // ...or maybe it is acceptable to just get as close as possible:
+//! assert_eq!(-4.6f32.cast::<i16>().closest(), -5i16);
+//! assert_eq!(-0.0f64.cast::<NonZeroI32>().closest(), NonZeroI32::new(-1).unwrap());
 //!
 //! // If you are supremely confident a cast is lossless you can always use unwrap_unchecked:
 //! assert_eq!(unsafe {90u32.cast::<u8>().unwrap_unchecked()}, 90);
@@ -46,7 +46,6 @@
 //!
 //! # Ok::<(), cove::errors::LossyCastError<i16, u8>>(())
 //! ```
-
 #![cfg_attr(target_pointer_width = "64", doc = "```")]
 #![cfg_attr(not(target_pointer_width = "64"), doc = "```compile_fail")]
 //! use cove::prelude::*;
@@ -113,7 +112,10 @@
 //! with `std` enabled, cove's error types implement [`std::error::Error`]; otherwise they do not.
 //!
 //! ## Usage
-//! All cove casts begin with a call to [`Cast::cast`]:
+//! Cove provides a [`prelude`] module to assist with importing the requisite extension traits.
+//! Most applications of cove will not require `use`ing anything more.
+//!
+//! All cove casts begin with a call to [`Cast::cast`](casts::Cast::cast):
 //! ```
 //! use cove::prelude::*;
 //!
@@ -129,19 +131,55 @@
 //!
 //! ### Follow-on Extension Traits
 //! Cove defines a number of extension traits which are implemented for the [`Result`] returned
-//! from calling [`Cast::cast`] and well as for its contained error types. A typical cove usage,
-//! therefore, involves calling [`Cast::cast`] and then immediately calling one of the follow-on
-//! extension traits on its [`Result`]:
+//! from calling [`Cast::cast`](casts::Cast::cast) and well as for its contained error types. A
+//! common cove usage, therefore, involves calling [`Cast::cast`](casts::Cast::cast) and then
+//! immediately calling one of the follow-on extension traits on its [`Result`]:
+//! ```
+//! use cove::prelude::*;
+//!
+//! assert_eq!(8u64.cast::<u16>().closest(), 8u16);
+//! assert_eq!((-8i64).cast::<u16>().saturated(), 0u16);
 //! ```
 //!
-//! ```
-//! practice, this
-//! means that the typical use of
-//! #### Lossless
-//! #### Lossy
-//! #### AssumedLossless
-//! #### Saturated
-//! #### Estimated
+//! An overview of the available follow-on extension traits is provided here; see the
+//! documentation for each trait for more in-depth details and semantics:
+//! * [`Lossless`](casts::Lossless): for compile-time lossless casts based on types alone (e.g.
+//! widening conversions)
+//!     * Will not compile for casts which could be lossy based on their types
+//!     * Does not guarantee portability; compiling on a target platform does not imply compiling on
+//!         all platforms
+//!     * Akin to [`From`]/[`Into`] but trades off portability guarantees for a broader scope (e.g.
+//!         support for `usize`/`isize`)
+//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
+//! * [`Lossy`](casts::Lossy): for casts where lossiness is acceptable with no general guarantees
+//!     on the accuracy
+//!     * Most akin to the `as` keyword but self-documents the intent and works in generic contexts
+//!     * Very situational: consider one of the other extension traits instead
+//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
+//! * [`AssumedLossless`](casts::AssumedLossless): for casts asserted to be lossless at runtime
+//!     * Will panic in dev builds if the cast is lossy; will just be silently lossy in release
+//!         builds
+//!     * Most akin to [`Result::unwrap_unchecked`] but offers an alternative to unsafeness
+//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
+//! * [`Saturated`](casts::Saturated): for casts which can be lossy provided they saturate to the
+//!     range of the target type
+//!     * Will not compile for casts which can be lossy in any other way, such as floats to
+//!         integers:
+//!     ```compile_fail
+//!     # use cove::prelude::*;
+//!     let _: usize = 3.2f32.cast().saturated();
+//!     ```
+//!     * Primarily useful for integer-to-integer narrowing conversions
+//!     * **NOT** zero-overhead: generally involves at least an extra branch over the `as` keyword
+//! * [`Closest`](casts::Closest): for casts which can be lossy provided they get as close as the
+//!     types allow
+//!     * Yields the closest possible cast, which might not be very close at all:
+//!     ```
+//!     # use cove::prelude::*;
+//!     assert_eq!(1_000_000_000u64.cast::<u8>().closest(), 255u8);
+//!     ```
+//!     * **NOT** zero-overhead: generally involves one or more extra branches over the `as`
+//!         keyword, especially with floats
 //! -----------------------
 //!
 //! ### Use Cases

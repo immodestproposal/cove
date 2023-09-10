@@ -2,7 +2,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::casts::{Cast, Estimated, Saturated};
+use crate::casts::{Cast, Closest, Saturated};
 use crate::errors::LossyCastError;
 use crate::base::CastImpl;
 use super::LosslessCast;
@@ -43,9 +43,9 @@ macro_rules! cast {
                 }
             }
 
-            impl Estimated<$to> for LossyCastError<$from, $to> {
+            impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn estimated(self) -> $to {
+                fn closest(self) -> $to {
                     // For int-to-int the closest is the saturated
                     self.saturated()
                 }
@@ -53,40 +53,64 @@ macro_rules! cast {
         )*
     };
 
-    (floating $from:ty => $($to:ty),+) => {
-        $(
-            impl CastImpl<$to> for $from {
-                type Error = LossyCastError<Self, $to>;
+    (floating $from:ty => $to:ty) => {
+        impl CastImpl<$to> for $from {
+            type Error = LossyCastError<Self, $to>;
 
-                #[inline]
-                fn cast_impl(self) -> Result<$to, Self::Error> {
-                    // Because TryFrom/TryInto is not implemented for floating point, we test
-                    // for lossy conversions by casting to the target and back, then checking
-                    // whether any data was lost.
-                    #[allow(clippy::float_cmp)]
-                    match self == (self as $to) as $from {
-                        true => Ok(self as $to),
-                        false => Err(LossyCastError {
-                            from: self,
-                            to: self as $to
-                        })
-                    }
+            #[inline]
+            fn cast_impl(self) -> Result<$to, Self::Error> {
+                // Because TryFrom/TryInto is not implemented for floating point, we test
+                // for lossy conversions by casting to the target and back, then checking
+                // whether any data was lost.
+                #[allow(clippy::float_cmp)]
+                match self == (self as $to) as $from {
+                    true => Ok(self as $to),
+                    false => Err(LossyCastError {
+                        from: self,
+                        to: self as $to
+                    })
                 }
             }
+        }
+    };
 
-            impl Estimated<$to> for LossyCastError<$from, $to> {
+    (int_to_float $from:ty => $($to:ty),+) => {
+        $(
+            cast!(floating $from => $to);
+
+            impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn estimated(self) -> $to {
-                    // For float-to-int and int-to-float the raw cast is the closest
+                fn closest(self) -> $to {
+                    // For int-to-float the raw cast is the closest
                     self.to
                 }
             }
         )*
     };
 
-    (floating $first:ty, $($from:ty),+ => $to:ty) => {
-        cast!(floating $first => $to);
-        $(cast!(floating $from => $to));*;
+    (float_to_int $from:ty => $($to:ty),+) => {
+        $(
+            cast!(floating $from => $to);
+
+            impl Closest<$to> for LossyCastError<$from, $to> {
+                #[inline]
+                fn closest(self) -> $to {
+                    // For float-to-int we must first round the number, then use the raw cast. If we
+                    // don't round first the default will round towards zero.
+                    self.from.round() as $to
+                }
+            }
+        )*
+    };
+
+    (int_to_float $first:ty, $($from:ty),+ => $to:ty) => {
+        cast!(int_to_float $first => $to);
+        $(cast!(int_to_float $from => $to));*;
+    };
+
+    (float_to_int $first:ty, $($from:ty),+ => $to:ty) => {
+        cast!(float_to_int $first => $to);
+        $(cast!(float_to_int $from => $to));*;
     };
 
     (lossless $from:ty => $($to:ty),+) => {
@@ -116,10 +140,10 @@ cast!(integer i64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, is
 cast!(integer i128 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 cast!(integer isize => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
-cast!(floating u32, u64, u128, usize, i32, i64, i128, isize => f32);
-cast!(floating u64, u128, usize, i64, i128, isize => f64);
-cast!(floating f32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
-cast!(floating f64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
+cast!(int_to_float u32, u64, u128, usize, i32, i64, i128, isize => f32);
+cast!(int_to_float u64, u128, usize, i64, i128, isize => f64);
+cast!(float_to_int f32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
+cast!(float_to_int f64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
 
 cast!(lossless u8 => u8, u16, u32, u64, u128, i16, i32, i64, i128, f32, f64);
 cast!(lossless u16 => u16, u32, u64, u128, i32, i64, i128, f32, f64);
@@ -180,17 +204,17 @@ impl Saturated<f64> for f32 {
     }
 }
 
-impl Estimated<f64> for f32 {
+impl Closest<f64> for f32 {
     #[inline]
-    fn estimated(self) -> f64 {
+    fn closest(self) -> f64 {
         self.into()
     }
 }
 
-impl Estimated<f32> for f64 {
+impl Closest<f32> for f64 {
     #[inline]
     #[allow(clippy::cast_possible_truncation)]
-    fn estimated(self) -> f32 {
+    fn closest(self) -> f32 {
         self as f32
     }
 }

@@ -1,1 +1,1 @@
-pub use crate::casts::{AssumedLossless, Cast, Estimated, Lossless, Lossy, Saturated};
+pub use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy, Saturated};

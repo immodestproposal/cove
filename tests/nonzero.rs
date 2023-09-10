@@ -14,20 +14,20 @@ fn nonzero_assumed_lossless() {
 #[test]
 fn nonzero_estimated() {
     // Narrowing: NonZero -> NonZero
-    assert_eq!(NonZeroU16::new(3).unwrap().cast::<NonZeroU8>().estimated().get(), 3u8);
-    assert_eq!(NonZeroU16::new(261).unwrap().cast::<NonZeroU8>().estimated().get(), 255u8);
+    assert_eq!(NonZeroU16::new(3).unwrap().cast::<NonZeroU8>().closest().get(), 3u8);
+    assert_eq!(NonZeroU16::new(261).unwrap().cast::<NonZeroU8>().closest().get(), 255u8);
 
     // Narrowing: NonZero -> primitive
-    assert_eq!(NonZeroU16::new(3).unwrap().cast::<u8>().estimated(), 3u8);
-    assert_eq!(NonZeroU16::new(261).unwrap().cast::<u8>().estimated(), 255u8);
+    assert_eq!(NonZeroU16::new(3).unwrap().cast::<u8>().closest(), 3u8);
+    assert_eq!(NonZeroU16::new(261).unwrap().cast::<u8>().closest(), 255u8);
 
     // Narrowing: primitive -> NonZero
-    assert_eq!(3u16.cast::<NonZeroU8>().estimated(), NonZeroU8::new(3).unwrap());
-    assert_eq!(261u16.cast::<NonZeroU8>().estimated(), NonZeroU8::new(255).unwrap());
-    assert_eq!(0u16.cast::<NonZeroU8>().estimated(), NonZeroU8::new(1).unwrap());
+    assert_eq!(3u16.cast::<NonZeroU8>().closest(), NonZeroU8::new(3).unwrap());
+    assert_eq!(261u16.cast::<NonZeroU8>().closest(), NonZeroU8::new(255).unwrap());
+    assert_eq!(0u16.cast::<NonZeroU8>().closest(), NonZeroU8::new(1).unwrap());
 
     // Floating point
-    assert_eq!(8.0f32.cast::<NonZeroI32>().estimated(), NonZeroI32::new(8).unwrap());
+    assert_eq!(8.0f32.cast::<NonZeroI32>().closest(), NonZeroI32::new(8).unwrap());
 }
 
 #[test]

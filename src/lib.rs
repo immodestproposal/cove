@@ -235,9 +235,14 @@
 //!     [`NonZeroIsize`](core::num::NonZeroIsize) when this is guaranteed lossless on the target
 //!     platform.
 //!
+//! ### Extending Support
+//! Extending cove's casts to new types involves implementing [`base::CastImpl`]; see the
+//! documentation for [`base`] for more details.
+//!
 //! ### Guidelines
-//! It can be challenging to determine which type of cast to use in which circumstances. While one
-//! size rarely fits all in software, here are some quick guidelines which might be useful:
+//! It might seem challenging to determine which type of cast to use in which circumstances.
+//! While one size rarely fits all in software, here are some quick guidelines which might be
+//! useful:
 //!
 //! * If [`From`]/[`Into`] are provided for your use case, use those instead of any of cove's casts
 //! * Otherwise, if you are writing an interface to be consumed by a third party:
@@ -260,11 +265,13 @@
 //!         * Exception: in some const contexts it may be necessary to use the `as` keyword,
 //!              since const trait support is limited
 //!
-//! ### Extending Support
-//! Extending cove's casts to new types involves implementing [`base::CastImpl`]; see the
-//! documentation for [`base`] for more details.
-//!
 //! ## Performance
+//! Cove's primary mission is to improve the casting situation by replacing as many use cases for
+//! the `as` keyword as possible. Since one of the reasons to use `as` is performance, cove
+//! strives to provide implementations which can compete on runtime speed, so that there is no
+//! need for the programmer to choose between safer, self-documenting casts and speedy ones.
+//!
+//! Several of the casts provided here
 
 // TODO: tests (both std and no_std)
 // TODO: re-document everything:

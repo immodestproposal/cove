@@ -251,14 +251,41 @@
 //! strives to provide implementations which can compete on runtime speed, so that there is no
 //! need for the programmer to choose between safer, self-documenting casts and speedy ones.
 //!
-//! Several of the casts provided here
+//! Several of the casts provided in this crate can be expected to optimize to the same
+//! assembly as the `as` keyword in release builds. For example, consider this function:
+//!
+//! ```
+//! #[inline(never)]
+//! fn cast_u32_to_u8(value: u32) {
+//!     // core::hint::black_box(value as u8);
+//!     // core::hint::black_box(value.cast::<u8>().lossy());
+//!     // core::hint::black_box(value.cast::<u8>().assumed_lossless());
+//! }
+//! ```
+//!
+//! Commenting in each of these lines in turn and compiling the function in release with Rust
+//! 1.72.0 on stable-x86_64-pc-windows-msvc yields the exact same assembly for all three:
+//!
+//! ```ignore
+//! push rax
+//! mov byte ptr [rsp + 7], cl
+//! lea rax, [rsp + 7]
+//! pop rax
+//! ret
+//! ```
+//!
+//! Optimizer results are subject to variation by version and platform and can never be completely
+//! relied upon, but the core point remains: there is no need to a priori favor `as` over cove's
+//! casts strictly for performance.
+//!
+//! Consult the documentation on each casting trait for performance notes. Also refer to `asm.rs`
+//! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
 // TODO: tests (both std and no_std)
 // TODO: re-document everything:
-// TODO:    * performance notes
 // TODO:    * small example of using traits in a generic context
-// TODO:    * full example of extending Cast (reference it from the CastImpl docs)
-// TODO:    * lib.rs, casts.rs, errors.rs
+// TODO:    * casts.rs (include notes on expected performance and type applicability/semantics)
+// TODO:    * errors.rs
 // TODO:    * re-read all docs for correctness
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
 // TODO: fill out cargo.toml more, fill out readme

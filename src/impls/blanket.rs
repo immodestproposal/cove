@@ -1,6 +1,6 @@
 //! This module provides blanket implementations of certain casting traits where applicable
 
-use crate::casts::{AssumedLossless, Closest, Lossless, Lossy, Saturated};
+use crate::casts::{AssumedLossless, Closest, Lossless, Lossy};
 use crate::errors::{FailedCastError, LossyCastError};
 use super::LosslessCast;
 use core::fmt::Debug;
@@ -59,13 +59,5 @@ impl<CastFrom, CastTo> Lossy<CastTo> for Result<CastTo, LossyCastError<CastFrom,
     #[inline]
     fn lossy(self) -> CastTo {
         self.unwrap_or_else(|error| error.to)
-    }
-}
-
-impl<CastFrom, CastTo> Saturated<CastTo> for Result<CastTo, LossyCastError<CastFrom, CastTo>>
-where LossyCastError<CastFrom, CastTo> : Saturated<CastTo> {
-    #[inline]
-    fn saturated(self) -> CastTo {
-        self.unwrap_or_else(Saturated::saturated)
     }
 }

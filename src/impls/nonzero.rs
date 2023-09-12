@@ -2,7 +2,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::casts::{Cast, Closest, Saturated};
+use crate::casts::{Cast, Closest};
 use crate::errors::{FailedCastError, LossyCastError};
 use crate::base::CastImpl;
 use super::LosslessCast;
@@ -39,9 +39,6 @@ macro_rules! cast {
             from_primitive $($integer),*, $($floating),* =>
             ($($nonzero_unsigned),*, $($nonzero_signed),*)
         );
-
-        // Generate the primitive integer to unsigned nonzero casts (Saturated)
-        cast!(from_integer_to_unsigned $($integer),* => ($($nonzero_unsigned),*));
         
         // The closest value for 0 is 1 when coming from an integer to any nonzero
         cast!(
@@ -76,10 +73,6 @@ macro_rules! cast {
     (from_primitive $($from:ty),+ => $args:tt) => {
         $(cast!(@from_primitive $from => $args);)*
     };
-    
-    (from_integer_to_unsigned $($from:ty),+ => $args:tt) => {
-        $(cast!(@from_integer_to_unsigned $from => $args);)*
-    };
 
     (from_primitive_positive_estimate $($from:ty),+ => $args:tt) => {
         $(cast!(@from_primitive_positive_estimate $from => $args);)*
@@ -108,26 +101,18 @@ macro_rules! cast {
                 }
             }
 
-            impl Saturated<$to> for LossyCastError<$from, $to> {
+            impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn saturated(self) -> $to {
+                fn closest(self) -> $to {
                     unsafe {
                         // Safe to use `new_unchecked` because the value cannot be zero
                         <$to>::new_unchecked(
                             LossyCastError {
                                 from: self.from.get(),
                                 to: self.to.get()
-                            }.saturated()
+                            }.closest()
                         )
                     }
-                }
-            }
-
-            impl Closest<$to> for LossyCastError<$from, $to> {
-                #[inline]
-                fn closest(self) -> $to {
-                    // For int-to-int the closest is the saturated
-                    self.saturated()
                 }
             }
         )*
@@ -151,21 +136,14 @@ macro_rules! cast {
 
     (@to_integer $from:ty => ($($to:ty),+)) => {
         $(
-            impl Saturated<$to> for LossyCastError<$from, $to> {
-                #[inline]
-                fn saturated(self) -> $to {
-                    LossyCastError {
-                        from: self.from.get(),
-                        to: self.to
-                    }.saturated()
-                }
-            }
-
             impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
                 fn closest(self) -> $to {
-                    // For int-to-int the closest is the saturated
-                    self.saturated()
+                    // Delegate to the primitive's implementation of closest
+                    LossyCastError {
+                        from: self.from.get(),
+                        to: self.to
+                    }.closest()
                 }
             }
         )*
@@ -193,19 +171,6 @@ macro_rules! cast {
                     // Cast to the root primitive of the nonzero before creating the nonzero
                     let primitive = self.cast().map_err(|_error| FailedCastError::new(self))?;
                     <$to>::new(primitive).ok_or_else(|| FailedCastError::new(self))
-                }
-            }
-        )*
-    };
-    
-    (@from_integer_to_unsigned $from:ty => ($($to:ty),+)) => {
-        $(
-            impl Saturated<$to> for FailedCastError<$from, $to> {
-                #[inline]
-                fn saturated(self) -> $to {
-                    // Create the NonZero from the saturated primitive, using a value of 1 if 0
-                    <$to>::new(self.from.cast().saturated())
-                        .unwrap_or_else(|| unsafe {<$to>::new_unchecked(1)})
                 }
             }
         )*

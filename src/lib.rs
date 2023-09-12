@@ -29,11 +29,9 @@
 //! // ...or more concisely:
 //! assert_eq!(9.2f64.cast::<usize>().lossy(), 9usize);
 //!
-//! // Perhaps you don't mind if the cast is lossy, but you'd like to saturate to the target type:
-//! assert_eq!(300u32.cast::<u8>().saturated(), 255u8);
-//! assert_eq!((-7isize).cast::<u16>().saturated(), 0u16);
-//!
-//! // ...or maybe it is acceptable to just get as close as possible:
+//! // Perhaps you don't mind if the cast is lossy, but you'd like to get as close as possible:
+//! assert_eq!(300u32.cast::<u8>().closest(), 255u8);
+//! assert_eq!((-7isize).cast::<u16>().closest(), 0u16);
 //! assert_eq!(-4.6f32.cast::<i16>().closest(), -5i16);
 //! assert_eq!(-0.0f64.cast::<NonZeroI32>().closest(), NonZeroI32::new(-1).unwrap());
 //!
@@ -131,8 +129,8 @@
 //! ```
 //! use cove::prelude::*;
 //!
-//! assert_eq!(8u64.cast::<u16>().closest(), 8u16);
-//! assert_eq!((-8i64).cast::<u16>().saturated(), 0u16);
+//! assert_eq!(8u64.cast::<u16>().assumed_lossless(), 8u16);
+//! assert_eq!((-8i64).cast::<u16>().closest(), 0u16);
 //! ```
 //!
 //! An overview of the available follow-on extension traits is provided here; see the
@@ -155,16 +153,6 @@
 //!         builds
 //!     * Most akin to [`Result::unwrap_unchecked`] but offers an alternative to unsafeness
 //!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
-//! * [`Saturated`](casts::Saturated): for casts which can be lossy provided they saturate to the
-//!     range of the target type
-//!     * Will not compile for casts which can be lossy in any other way, such as floats to
-//!         integers:
-//!     ```compile_fail
-//!     # use cove::prelude::*;
-//!     let _: usize = 3.2f32.cast().saturated();
-//!     ```
-//!     * Primarily useful for integer-to-integer narrowing conversions
-//!     * **NOT** zero-overhead: generally involves at least an extra branch over the `as` keyword
 //! * [`Closest`](casts::Closest): for casts which can be lossy provided they get as close as the
 //!     types allow
 //!     * Yields the closest possible cast, which might not be very close at all:
@@ -172,8 +160,7 @@
 //!     # use cove::prelude::*;
 //!     assert_eq!(1_000_000_000u64.cast::<u8>().closest(), 255u8);
 //!     ```
-//!     * **NOT** zero-overhead: generally involves one or more extra branches over the `as`
-//!         keyword, especially with floats
+//!     * **NOT** zero-overhead: generally involves at least one branch over the `as` keyword
 //!
 //! ### Errors
 //! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. In
@@ -191,7 +178,7 @@
 //!     * Provides a descriptive message
 //!         * e.g. `"Numerical cast was lossy [260 (u32) -> 4 (u8)]"`
 //! * [`FailedCastError`](errors::FailedCastError): for lossy casts which are unable to represent
-//! the lossy value as the target type
+//!     the lossy value as the target type
 //!     * Used for certain NonZero casts, where representing e.g.
 //!         [`NonZeroUsize`](core::num::NonZeroUsize) in the error type could invoke undefined
 //!         behavior
@@ -219,7 +206,7 @@
 //!
 //! ### Supported Casts
 //! Not all follow-on cast types make sense for all numerical conversions; attempting to use an
-//! unsupported cast will result in a compilation error. Refer to the documentation for the
+//! unsupported cast will result in a compilation error. Refer to the documentation of the
 //! individual casts for details, but as quick rules of thumb:
 //!
 //! * [`Cast`](casts::Cast) and [`Closest`](casts::Closest) are supported for all casts between all
@@ -227,9 +214,6 @@
 //!     [`core::num`].
 //! * [`Lossy`](casts::Lossy) and [`AssumedLossless`](casts::AssumedLossless) are supported
 //!     whenever the target type is a primitive.
-//! * [`Saturated`](casts::Saturated) is supported when the origin type is an integer (including
-//!     NonZero* integers) and the target type is a primitive integer or an unsigned NonZero*
-//!     integer.
 //! * [`Lossless`](casts::Lossless) is supported whenever [`From`]/[`Into`] is supported as well
 //!     as to/from [`usize`] / [`isize`] / [`NonZeroUsize`](core::num::NonZeroUsize) /
 //!     [`NonZeroIsize`](core::num::NonZeroIsize) when this is guaranteed lossless on the target
@@ -256,12 +240,8 @@
 //!     * Favor [`AssumedLossless`](casts::AssumedLossless) if confident the cast will always be
 //!         lossless
 //!     * Favor [`Cast`](casts::Cast) with error handling if only lossless casts should proceed
-//!     * Favor [`Saturated`](casts::Saturated) if provided for your use case and best-effort
-//!         lossiness is acceptable
-//!     * Favor [`Closest`](casts::Closest) if [`Saturated`](casts::Saturated) is not provided
-//!         for your use case and best-effort lossiness is acceptable
-//!     * Use [`Lossy`](casts::Lossy) as a last resort when performance is critical and
-//!         lossiness is acceptable; favor this over the `as` keyword
+//!     * Favor [`Closest`](casts::Closest) when best-effort lossiness is acceptable
+//!     * Use [`Lossy`](casts::Lossy) in niche circumstances; favor this over the `as` keyword
 //!         * Exception: in some const contexts it may be necessary to use the `as` keyword,
 //!              since const trait support is limited
 //!

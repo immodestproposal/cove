@@ -2,7 +2,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::casts::{Cast, Closest, Saturated};
+use crate::casts::{Cast, Closest};
 use crate::errors::LossyCastError;
 use crate::base::CastImpl;
 use super::LosslessCast;
@@ -28,26 +28,17 @@ macro_rules! cast {
                 }
             }
 
-            impl Saturated<$to> for LossyCastError<$from, $to> {
+            impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
-                fn saturated(self) -> $to {
+                fn closest(self) -> $to {
                     // Cast failed; if this is less than 0 use the target's MIN, otherwise
-                    // use its MAX. This logic cannot be used in general for saturation but
-                    // holds for all types actually fed to this macro. Note that the branch
-                    // will be optimized away for unsigned source types, at least in release.
+                    // use its MAX. Note that the branch will be optimized away for unsigned source 
+                    // types, at least in release builds.
                     #[allow(unused_comparisons)]
                     match self.from < 0 {
                         true => <$to>::MIN,
                         false => <$to>::MAX
                     }
-                }
-            }
-
-            impl Closest<$to> for LossyCastError<$from, $to> {
-                #[inline]
-                fn closest(self) -> $to {
-                    // For int-to-int the closest is the saturated
-                    self.saturated()
                 }
             }
         )*
@@ -209,13 +200,6 @@ mod platform_dependent {
 }
 
 // -- Manual Implementations -- //
-impl Saturated<f64> for f32 {
-    #[inline]
-    fn saturated(self) -> f64 {
-        self.into()
-    }
-}
-
 impl Closest<f64> for f32 {
     #[inline]
     fn closest(self) -> f64 {

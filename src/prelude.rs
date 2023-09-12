@@ -7,4 +7,4 @@
 //!
 //! While it is possible to selectively import required objects, that can be needlessly verbose.
 
-pub use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy, Saturated};
+pub use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};

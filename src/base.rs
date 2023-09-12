@@ -34,10 +34,9 @@
 //! Implement [`CastImpl`] to extend casting functionality to new types, and the follow-on extension
 //! traits ([`AssumedLossless`](crate::casts::AssumedLossless) /
 //! [`Closest`](crate::casts::Closest) / [`Lossless`](crate::casts::Lossless) /
-//! [`Lossy`](crate::casts::Lossy) / [`Saturated`](crate::casts::Saturated)) as appropriate. Upon
-//! implementing [`CastImpl`], be sure to also implement [`Cast`](crate::casts::Cast) using the
-//! default implementation; essentially, just mark the type as implementing
-//! [`Cast`](crate::casts::Cast).
+//! [`Lossy`](crate::casts::Lossy)) as appropriate. Upon implementing [`CastImpl`], be sure to also
+//! implement [`Cast`](crate::casts::Cast) using the default implementation; essentially, just mark
+//! the type as implementing [`Cast`](crate::casts::Cast).
 //!
 //! **Example of extending casting functionality:**
 //!
@@ -84,7 +83,7 @@
 //! ```
 
 /// Provides the base trait for [`Cast`](crate::Cast); implement this to extend
-/// [`Cast`](crate::Cast) to new types.
+/// [`Cast`](crate::casts::Cast) to new types.
 ///
 /// See the [module documentation](crate::base) for an example.
 pub trait CastImpl<T> {

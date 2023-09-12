@@ -60,45 +60,6 @@ pub trait Cast {
     }
 }
 
-/// Extension trait for saturating an integer to a target type, applied after a [`Cast::cast`]
-///
-/// When applied to a cast that was lossless this will simply return the casted value. If lossy, it
-/// will return the target type's MIN or MAX, whichever is closest to the source value. This is
-/// provided for CastError<F, T> and Result<T, CastError<F, T>> for integer types. It is not
-/// provided for floating point types (except f32 ⮕ f64, which is lossless) to avoid ambiguity in
-/// semantics (e.g., what does it mean to saturate NaN to an integer?); consider using an alternate
-/// cast for floats, such as [`Lossy`] or [`Closest`].
-pub trait Saturated<T> {
-    /// Called on a CastError<F, T> or Result<T, CastError<F, T>> to yield the closest possible
-    /// value of type `T` to the original source value. Concretely, if source < `T::MIN` this will
-    /// return `T::MIN`; if source > `T::MAX` this will return `T::MAX`, and otherwise this will
-    /// return the source value but as type `T`.
-    ///
-    /// # Examples
-    /// ```
-    /// use cove::prelude::*;
-    ///
-    /// // Call a function `foo` via a cast; no type disambiguation required in this case
-    /// fn foo(x: u8) -> u8 {x}
-    /// assert_eq!(foo(7u32.cast().saturated()), 7u8);
-    ///
-    /// // Saturating after a lossless cast just yields the original value
-    /// assert_eq!((-3i32).cast::<i8>().saturated(), -3);
-    ///
-    /// // Saturating after a lossy cast yields the MIN or MAX, as appropriate
-    /// assert_eq!((-3i32).cast::<u8>().saturated(), u8::MIN);
-    /// assert_eq!(300u16.cast::<u8>().saturated(), u8::MAX);
-    /// ```
-    ///
-    /// ```compile_fail
-    /// use cove::{Cast, Saturated};
-    ///
-    /// // Attempting to saturate a floating point cast is a compile error; not defined
-    /// let _fail = f32::NAN.cast::<u16>().saturated();
-    /// ```
-    fn saturated(self) -> T;
-}
-
 /// Extension trait for infallibly casting between numerical types
 ///
 /// This is spiritually similar to [`From`]/[`Into`] but differs slightly. The main difference is

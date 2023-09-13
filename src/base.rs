@@ -23,7 +23,7 @@
 //! # Ok::<(), Box<cove::errors::LossyCastError<u16, u8>>>(())
 //! ```
 //!
-//! ...or else one rather awkward line like this:
+//! ...or else one rather awkward line:
 //!
 //! ```
 //! # use cove::base::CastImpl;
@@ -77,19 +77,20 @@
 //! assert_eq!(Wrapper(8).cast::<u8>().assumed_lossless(), 8u8);
 //! assert_eq!(Wrapper(300).cast::<u8>().lossy(), 44u8);
 //!
-//! // If Saturated, Closest, or Lossless are desired it may be necessary to use a different
-//! // error type; otherwise it is will be difficult to implement those extension traits due to
-//! // Rust's orphaning rules.
+//! // If Closest or Lossless is desired it may be necessary to use a different error type;
+//! // otherwise it will be difficult to implement those extension traits due to Rust's orphaning
+//! // rules.
 //! ```
 
-/// Provides the base trait for [`Cast`](crate::Cast); implement this to extend
+/// Provides the base trait for [`Cast`](crate::casts::Cast); implement this to extend
 /// [`Cast`](crate::casts::Cast) to new types.
 ///
 /// See the [module documentation](crate::base) for an example.
 pub trait CastImpl<T> {
-    /// Specifies the error type returned from [`cast_impl`](CastImpl::cast_impl). Note that some
-    /// blanket implementations for the follow-on extension traits may apply if this is one of the
-    /// error types provided by this crate ([`LossyCastError`](crate::errors::LossyCastError) /
+    /// Specifies the error type returned from [`cast_impl`](CastImpl::cast_impl) and by
+    /// extension from [`Cast::cast`](crate::casts::Cast::cast). Note that some blanket
+    /// implementations for the follow-on extension traits may apply if this is one of the error
+    /// types provided by this crate ([`LossyCastError`](crate::errors::LossyCastError) /
     /// [`FailedCastError`](crate::errors::FailedCastError)).
     type Error;
 

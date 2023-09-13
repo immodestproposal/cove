@@ -230,14 +230,14 @@ cast!(
     lossless NonZeroU8 =>
         NonZeroU8,  NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
         NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
-        u8, u16, u32, u64, u128,
-        i16, i32, i64, i128
+        u8, u16, u32, u64, u128, usize,
+        i16, i32, i64, i128, isize
 );
 
 cast!(
     lossless NonZeroU16 =>
         NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128,
-        u16, u32, u64, u128, i32, i64, i128
+        u16, u32, u64, u128, usize, i32, i64, i128
 );
 
 cast!(
@@ -253,10 +253,15 @@ cast!(lossless NonZeroUsize => NonZeroUsize, usize);
 cast!(
     lossless NonZeroI8 =>
         NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
-        i8, i16, i32, i64, i128
+        i8, i16, i32, i64, i128, isize
 );
 
-cast!(lossless NonZeroI16 => NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, i16, i32, i64, i128);
+cast!(
+    lossless NonZeroI16 =>
+    NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
+    i16, i32, i64, i128, isize
+);
+
 cast!(lossless NonZeroI32 => NonZeroI32, NonZeroI64, NonZeroI128, i32, i64, i128);
 cast!(lossless NonZeroI64 => NonZeroI64, NonZeroI128, i64, i128);
 cast!(lossless NonZeroI128 => NonZeroI128, i128);
@@ -296,7 +301,10 @@ mod platform_dependent {
     cast!(lossless NonZeroIsize => NonZeroI32, NonZeroI64, NonZeroI128, i32, i64, i128);
 
     cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32 => NonZeroUsize);
+    cast!(lossless NonZeroU32 => usize);
+
     cast!(lossless NonZeroU8, NonZeroU16, NonZeroI8, NonZeroI16, NonZeroI32 => NonZeroIsize);
+    cast!(lossless NonZeroU16, NonZeroI32 => isize);
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -307,9 +315,12 @@ mod platform_dependent {
     cast!(lossless NonZeroIsize => NonZeroI64, NonZeroI128, i64, i128);
 
     cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64 => NonZeroUsize);
+    cast!(lossless NonZeroU32, NonZeroU64 => usize);
 
     cast!(
         lossless NonZeroU8, NonZeroU16, NonZeroU32, NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64
         => NonZeroIsize
     );
+
+    cast!(lossless NonZeroU16, NonZeroU32, NonZeroI32, NonZeroI64 => isize);
 }

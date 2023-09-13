@@ -162,7 +162,7 @@
 //!     ```
 //!     * **NOT** zero-overhead: generally involves at least one branch over the `as` keyword
 //!
-//! ### Errors
+//! ### Cast Errors
 //! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. In
 //! practice, cove provides two error types which are actually used for casts:
 //!
@@ -281,14 +281,13 @@
 //! Consult the documentation on each casting trait for performance notes. Also refer to `asm.rs`
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
-// TODO: tests (both std and no_std)
-// TODO: re-document everything:
+// TODO: tests (both std and no_std): also cross-compiled for pointer widths
+// TODO: documentation:
 // TODO:    * small example of using traits in a generic context
-// TODO:    * casts.rs (include notes on expected performance and type applicability/semantics)
-// TODO:    * errors.rs
 // TODO:    * re-read all docs for correctness
+// TODO:    * readme
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
-// TODO: fill out cargo.toml more, fill out readme
+// TODO: fill out cargo.toml more (badges, keywords, etc)
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 
 mod impls;

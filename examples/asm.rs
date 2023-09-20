@@ -82,7 +82,9 @@ fn unpredictable<T>() -> T where u128: CastImpl<T, Error = LossyCastError<u128, 
     // Just use the count of milliseconds since the epoch
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH).unwrap()
-        .as_millis().cast().lossy()
+        .as_millis()
+        .cast()
+        .lossy()
 }
 
 /// Provides a no_std variant of `unpredictable`; this is a placeholder which should be filled in
@@ -90,6 +92,6 @@ fn unpredictable<T>() -> T where u128: CastImpl<T, Error = LossyCastError<u128, 
 /// compile time, to help disable optimizations.
 #[cfg(not(feature = "std"))]
 fn unpredictable<T>() -> T where u8: CastImpl<T, Error = LossyCastError<u8, T>> {
-    // Value chosen arbitrarily
+    // Placeholder value chosen arbitrarily
     12u8.cast().lossy()
 }

@@ -11,8 +11,5 @@ Casts of Varying Elegance (COVE)
 [crates-url]: https://crates.io/crates/cove
 [mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [mit-url]: https://github.com/immodestproposal/cove/blob/master/LICENSE
-[actions-badge]: https://github.com/immodestproposal/cove/workflows/CI/badge.svg
+[actions-badge]: https://github.com/immodestproposal/cove/actions/workflows/CI.yml/badge.svg
 [actions-url]: https://github.com/immodestproposal/cove/actions?query=workflow%3ACI+branch%3Amaster
-
-[actions-badge]: https://github.com/tokio-rs/tokio/workflows/CI/badge.svg
-[actions-url]: https://github.com/tokio-rs/tokio/actions?query=workflow%3ACI+branch%3Amaster

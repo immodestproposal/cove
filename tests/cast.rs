@@ -2,24 +2,36 @@
 
 use cove::prelude::*;
 
+use core::num::{
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
+};
+
 #[test]
 #[allow(clippy::cast_possible_truncation, clippy::float_cmp)]
 fn narrowing_casts_lossless() {
     // Unsigned to unsigned
     assert_eq!(98usize.cast::<u8>().unwrap(), 98u8);
     assert_eq!(62000u64.cast::<u32>().unwrap(), 62000u32);
+    assert_eq!(12123u32.cast::<NonZeroU16>().unwrap(), NonZeroU16::new(12123).unwrap());
 
     // Unsigned to signed
     assert_eq!(12345u32.cast::<i16>().unwrap(), 12345i16);
     assert_eq!(33usize.cast::<i8>().unwrap(), 33i8);
+    assert_eq!(18u128.cast::<NonZeroI32>().unwrap(), NonZeroI32::new(18).unwrap());
 
     // Signed to signed
     assert_eq!((-82i16).cast::<i8>().unwrap(), -82i8);
     assert_eq!(7000i128.cast::<i64>().unwrap(), 7000i64);
+    assert_eq!(NonZeroI64::new(-3000).unwrap().cast::<i16>().unwrap(), -3000i16);
 
     // Signed to unsigned
     assert_eq!(13i16.cast::<u8>().unwrap(), 13u8);
     assert_eq!(8123i64.cast::<u32>().unwrap(), 8123u32);
+    assert_eq!(
+        NonZeroIsize::new(9000).unwrap().cast::<NonZeroU32>().unwrap(),
+        NonZeroU32::new(9000).unwrap()
+    );
 
     // Float to float
     assert_eq!((-3.5f64).cast::<f32>().unwrap(), -3.5f64 as f32);

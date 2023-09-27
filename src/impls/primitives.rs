@@ -52,7 +52,7 @@ macro_rules! cast {
             fn cast_impl(self) -> Result<$to, Self::Error> {
                 // Because TryFrom/TryInto is not implemented for floating point, we test
                 // for lossy conversions by casting to the target and back, then checking
-                // whether any data was lost.
+                // whether any data was lost. TODO: this is just wrong, need to change it up
                 #[allow(clippy::float_cmp)]
                 match self == (self as $to) as $from {
                     true => Ok(self as $to),

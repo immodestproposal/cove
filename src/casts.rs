@@ -203,7 +203,7 @@ pub trait Lossless<T> {
 /// casts. This is relevant because it could be a source of errors.
 ///
 /// [`Lossy`] is rarely the correct cast for a given situation. In almost all use cases it is
-/// better to use [`From`/`Into`], [`Cast`], or one of the other follow-on extension traits
+/// better to use [`From`]/[`Into`], [`Cast`], or one of the other follow-on extension traits
 /// provided by cove. That said, [`Lossy`] should usually be preferred over the raw `as` keyword;
 /// see the [`crate guidelines`](crate#guidelines) for more discussion on this topic.
 ///

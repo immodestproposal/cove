@@ -119,6 +119,7 @@ fn float_lossy() {
     assert_eq!(NonZeroU128::MAX.cast::<f64>().unwrap_err().to, u128::MAX as f64);
 
     // From signed
-    assert_eq!(i64::MIN.cast::<f32>().unwrap_err().to, i64::MIN as f32);
+    assert_eq!(i64::MIN.cast::<f32>().unwrap(), i64::MIN as f32);
+    assert_eq!((i64::MIN + 1).cast::<f32>().unwrap_err().to, (i64::MIN + 1) as f32);
     assert_eq!(i64::MAX.cast::<f64>().unwrap_err().to, i64::MAX as f64);
 }

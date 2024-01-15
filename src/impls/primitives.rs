@@ -44,30 +44,57 @@ macro_rules! cast {
         )*
     };
 
-    (floating $from:ty => $to:ty) => {
-        impl CastImpl<$to> for $from {
-            type Error = LossyCastError<Self, $to>;
+    (int_to_float $from:ty => $($to:ty),+) => {
+        $(
+            impl CastImpl<$to> for $from {
+                type Error = LossyCastError<Self, $to>;
 
-            #[inline]
-            fn cast_impl(self) -> Result<$to, Self::Error> {
-                // Because TryFrom/TryInto is not implemented for floating point, we test
-                // for lossy conversions by casting to the target and back, then checking
-                // whether any data was lost. TODO: this is just wrong, need to change it up
-                #[allow(clippy::float_cmp)]
-                match self == (self as $to) as $from {
-                    true => Ok(self as $to),
-                    false => Err(LossyCastError {
+                #[inline]
+                fn cast_impl(self) -> Result<$to, Self::Error> {
+                    // If the int's type can entirely fit within the float's mantissa digits,
+                    // we can safely just cast with values known at compile time.
+                    if <$from>::BITS <= <$to>::MANTISSA_DIGITS {
+                        return Ok(self as $to)
+                    }
+
+                    // Compute the absolute value; we use abs_diff() because it is defined on both
+                    // signed and unsigned integers and works for minimum signed numbers.
+                    let value = self.abs_diff(0);
+
+                    // If the int's value fits within the float's mantissa digits, we can safely
+                    // just cast. The formula for the max int should be 2^MANTISSA_DIGITS - 1, but
+                    // we use 2^MANTISSA_DIGITS because otherwise we would have to handle the
+                    // overflowing case specially. Since 2^MANTISSA_DIGITS is an in-range power of 2
+                    // it should work anyway by the later check.
+                    if value as $from <= (2 as $from).saturating_pow(<$to>::MANTISSA_DIGITS) {
+                        // This check involves casting back to $from; if $from was unsigned this is
+                        // a no-op -- that is, the value is unchanged. If $from was signed this is
+                        // also a no-op unless self was specifically $from::MIN, in which case it
+                        // restores the value to $from::MIN. Since that will be negative this check
+                        // will be trivially true in that case; this is acceptable because the
+                        // absolute value of $from::MIN is always an in-range power of two, so it
+                        // would pass the next check anyway.
+                        return Ok(self as $to)
+                    }
+
+                    // If the int is a power of 2 and in range we can safely just cast. For the
+                    // range test it is sufficient to just cast $to::MAX to $from because either it
+                    // is larger than $from::MAX in which case the bounds check is unnecessary and
+                    // harmless, or else it is smaller than $from::MAX and thus will round toward
+                    // zero, which is what we want. Note also that only u128::MAX is in danger of
+                    // failing the self <= MAX_FLOAT_AS_INT check, as the only power of two which
+                    // exceeds any floating point max.
+                    if value.is_power_of_two() && self <= <$to>::MAX as $from {
+                        return Ok(self as $to)
+                    }
+
+                    // All the lossless cases have been covered, so this cast is lossy
+                    Err(LossyCastError {
                         from: self,
                         to: self as $to
                     })
                 }
             }
-        }
-    };
-
-    (int_to_float $from:ty => $($to:ty),+) => {
-        $(
-            cast!(floating $from => $to);
 
             impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
@@ -81,7 +108,23 @@ macro_rules! cast {
 
     (float_to_int $from:ty => $($to:ty),+) => {
         $(
-            cast!(floating $from => $to);
+            impl CastImpl<$to> for $from {
+                type Error = LossyCastError<Self, $to>;
+
+                #[inline]
+                fn cast_impl(self) -> Result<$to, Self::Error> {
+                    // Cast to the int and back, comparing whether the value has changed to
+                    // determine whether the cast was lossy.
+                    #[allow(clippy::float_cmp)]
+                    match self == (self as $to) as $from {
+                        true => Ok(self as $to),
+                        false => Err(LossyCastError {
+                            from: self,
+                            to: self as $to
+                        })
+                    }
+                }
+            }
 
             impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]

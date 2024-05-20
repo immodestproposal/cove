@@ -6,6 +6,7 @@ use crate::casts::{Cast, Closest};
 use crate::errors::LossyCastError;
 use crate::base::CastImpl;
 use super::LosslessCast;
+use core::num::FpCategory;
 
 macro_rules! cast {
     ($($num:ty),+) => {
@@ -113,15 +114,62 @@ macro_rules! cast {
 
                 #[inline]
                 fn cast_impl(self) -> Result<$to, Self::Error> {
-                    // Cast to the int and back, comparing whether the value has changed to
-                    // determine whether the cast was lossy.
-                    #[allow(clippy::float_cmp)]
-                    match self == (self as $to) as $from {
-                        true => Ok(self as $to),
-                        false => Err(LossyCastError {
+                    // TODO: the logic is:
+                    // Must be finite
+                    // Must not contain a fractional part
+                    // Must be less than or equal to $to::MAX
+                    // If all these conditions are met, the cast is lossless; otherwise, lossy
+                    // NOTE: consult crate libm, fns trunc, truncf for implementation ideas
+                    
+                    // Only finite floats can be integers, not NaNs and infinities
+                    if !self.is_finite() {
+                        return Err(LossyCastError {
                             from: self,
                             to: self as $to
                         })
+                    }
+                    
+                    // Extract the fractional part
+                    let has_fract = {
+                        // If std is enabled, just use fract() to extract the fractional part
+                        #[cfg(feature = "std")] {
+                            self.fract().classify() != FpCategory::Zero
+                        }
+                        
+                        // No std, so we will need to manually check for a fractional part
+                        #[cfg(not(feature = "std"))] {
+                            // Identifies the number of bits in the mantissa; 23 for f32, 52 for f64
+                            const MANTISSA_BITS = $from::MANTISSA_DIGITS - 1;
+                            
+                            // Identifies the bitmask for the exponent (after shifting); this is
+                            // 0xFF (8 bits) for f32 and 0x7FF (11 bits) for f64
+                            const MAX_EXP_MASK = ($from::MAX_EXP << 1) - 1;
+                            
+                            let value = self.to_bits();
+                            let exponent = (value >> MANTISSA_BITS & MAX_EXP_MASK);
+                        }
+                    };
+                    
+                    // 
+
+                    // Check for a fractional part; if std is enabled, use fract()
+                    #[cfg(feature = "std")] {
+                        if self.fract().classify() != FpCategory::Zero {
+                            // There is a fraction, so this cannot cast cleanly to an int
+                            return Err(LossyCastERror {
+                                from: self,
+                                to: self as $to
+                            })
+                        }
+                    }
+
+                    // No std, so we will need to manually check for a fractional part
+                    #[cfg(not(feature = "std"))] {
+                        // Determine which is the least-significant 1 bit in the mantissa
+                        let value = self.to_bits();
+                        let trailing_zeros = value.trailing_zeros();
+                        if trailing_zeros < $from::MANTISSA_DIGITS - 1
+                        && trailing_zeros
                     }
                 }
             }

@@ -1,6 +1,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 
+// This is allowed across the board because clippy is incorrect; matching on bool is more 
+// compact and easier to read than if/else. Obviously this is subjective, but for exactly 
+// that reason clippy shouldn't be trying to force its authors' personal preferences on the 
+// community as a whole.
+#![allow(clippy::match_bool)]
+
 //! # Cove: Casts Of Varying Elegance
 //! A collection of extension traits to improve the safety and maintainability of numerical casts.
 //!

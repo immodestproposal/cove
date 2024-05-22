@@ -6,7 +6,6 @@ use crate::casts::{Cast, Closest};
 use crate::errors::LossyCastError;
 use crate::base::CastImpl;
 use super::LosslessCast;
-use core::num::FpCategory;
 
 macro_rules! cast {
     ($($num:ty),+) => {
@@ -88,6 +87,8 @@ macro_rules! cast {
                     if value.is_power_of_two() && self <= <$to>::MAX as $from {
                         return Ok(self as $to)
                     }
+                    
+                    println!("[MATT] I-to-F: [Self: {self}][Value: {value}][MaxMantissa: {}", (2 as $from).saturating_pow(<$to>::MANTISSA_DIGITS));
 
                     // All the lossless cases have been covered, so this cast is lossy
                     Err(LossyCastError {
@@ -114,62 +115,29 @@ macro_rules! cast {
 
                 #[inline]
                 fn cast_impl(self) -> Result<$to, Self::Error> {
-                    // TODO: the logic is:
-                    // Must be finite
-                    // Must not contain a fractional part
-                    // Must be less than or equal to $to::MAX
-                    // If all these conditions are met, the cast is lossless; otherwise, lossy
-                    // NOTE: consult crate libm, fns trunc, truncf for implementation ideas
+                    // This leverages the int_to_float cast test to check for lossiness.
+                    // The basic idea is to cast via `as` to the target integer type, then cast
+                    // back with checking (via `cast_impl`) to see whether the round trip was
+                    // lossless. We need to explicitly test for infinite but otherwise are correct
+                    // to use the direct equality testing of floats (despite that being typically
+                    // inadvisable). The breakdown of cases is as follow:
+                    // * Casting NaN or INFINITY will register as lossy due to checking is_finite()
+                    // * Casting 0 will register as lossless, regardless of sign
+                    // * Casting a non-integer will register as lossy
+                    // * Casting an integer in range will register as lossless
+                    // * Casting an integer out of range (including negative to unsigned types)
+                    // will register as lossy
+                    let value = self as $to;
                     
-                    // Only finite floats can be integers, not NaNs and infinities
-                    if !self.is_finite() {
-                        return Err(LossyCastError {
+                    let matt = CastImpl::<$from>::cast_impl(value);
+                    println!("[MATT] F-to-I: {matt:?} [Self: {self}][Finite: {}]", self.is_finite());
+                    
+                    match CastImpl::<$from>::cast_impl(value) {
+                        Ok(restored) if self.is_finite() && restored == self => Ok(value),
+                        _ => Err(LossyCastError {
                             from: self,
-                            to: self as $to
+                            to: value
                         })
-                    }
-                    
-                    // Extract the fractional part
-                    let has_fract = {
-                        // If std is enabled, just use fract() to extract the fractional part
-                        #[cfg(feature = "std")] {
-                            self.fract().classify() != FpCategory::Zero
-                        }
-                        
-                        // No std, so we will need to manually check for a fractional part
-                        #[cfg(not(feature = "std"))] {
-                            // Identifies the number of bits in the mantissa; 23 for f32, 52 for f64
-                            const MANTISSA_BITS = $from::MANTISSA_DIGITS - 1;
-                            
-                            // Identifies the bitmask for the exponent (after shifting); this is
-                            // 0xFF (8 bits) for f32 and 0x7FF (11 bits) for f64
-                            const MAX_EXP_MASK = ($from::MAX_EXP << 1) - 1;
-                            
-                            let value = self.to_bits();
-                            let exponent = (value >> MANTISSA_BITS & MAX_EXP_MASK);
-                        }
-                    };
-                    
-                    // 
-
-                    // Check for a fractional part; if std is enabled, use fract()
-                    #[cfg(feature = "std")] {
-                        if self.fract().classify() != FpCategory::Zero {
-                            // There is a fraction, so this cannot cast cleanly to an int
-                            return Err(LossyCastERror {
-                                from: self,
-                                to: self as $to
-                            })
-                        }
-                    }
-
-                    // No std, so we will need to manually check for a fractional part
-                    #[cfg(not(feature = "std"))] {
-                        // Determine which is the least-significant 1 bit in the mantissa
-                        let value = self.to_bits();
-                        let trailing_zeros = value.trailing_zeros();
-                        if trailing_zeros < $from::MANTISSA_DIGITS - 1
-                        && trailing_zeros
                     }
                 }
             }
@@ -236,8 +204,8 @@ cast!(integer isize => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, 
 
 cast!(int_to_float u32, u64, u128, usize, i32, i64, i128, isize => f32);
 cast!(int_to_float u64, u128, usize, i64, i128, isize => f64);
-cast!(float_to_int f32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
-cast!(float_to_int f64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
+cast!(float_to_int f32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+cast!(float_to_int f64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
 cast!(lossless u8 => u8, u16, u32, u64, u128, i16, i32, i64, i128, f32, f64);
 cast!(lossless u16 => u16, u32, u64, u128, i32, i64, i128, f32, f64);
@@ -291,10 +259,41 @@ mod platform_dependent {
 }
 
 // -- Manual Implementations -- //
+impl CastImpl<f64> for f32 {
+    type Error = LossyCastError<Self, f64>;
+    
+    #[inline]
+    fn cast_impl(self) -> Result<f64, Self::Error> {
+        Ok(f64::from(self))
+    }    
+}
+
 impl Closest<f64> for f32 {
     #[inline]
     fn closest(self) -> f64 {
         self.into()
+    }
+}
+
+impl CastImpl<f32> for f64 {
+    type Error = LossyCastError<Self, f32>;
+
+    #[inline]
+    fn cast_impl(self) -> Result<f32, Self::Error> {
+        // Perform the cast
+        #[allow(clippy::cast_possible_truncation)]
+        let value = self as f32;
+        
+        // Cast back and compare; this works since f32 -> f64 is lossless and the default behaviors
+        // of equality testing are what we want, despite usually being inadvisable for floats.
+        #[allow(clippy::float_cmp)]
+        match f64::from(value) == self {
+            true => Ok(value),
+            false => Err(LossyCastError {
+                from: self,
+                to: value
+            })
+        }
     }
 }
 

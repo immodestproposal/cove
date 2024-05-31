@@ -77,12 +77,14 @@ fn float_lossless() {
     assert_eq!(f32::MIN.cast::<f64>().unwrap(), f32::MIN as f64);
 
     // To unsigned
+    assert_eq!((-0f64).cast::<u16>().unwrap(), 0u16);
     assert_eq!(7f32.cast::<u32>().unwrap(), 7u32);
     assert_eq!(89991f64.cast::<NonZeroU32>().unwrap(), NonZeroU32::new(89991).unwrap());
 
     // To signed
     assert_eq!(980f32.cast::<isize>().unwrap(), 980isize);
     assert_eq!((-87f64).cast::<NonZeroI8>().unwrap(), NonZeroI8::new(-87).unwrap());
+    assert_eq!(0f32.cast::<i64>().unwrap(), 0i64);
 
     // From unsigned
     assert_eq!(NonZeroUsize::new(7770).unwrap().cast::<f32>().unwrap(), 7770usize as f32);

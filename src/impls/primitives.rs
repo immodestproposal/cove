@@ -53,7 +53,7 @@ macro_rules! cast {
                 fn cast_impl(self) -> Result<$to, Self::Error> {
                     // If the int's type can entirely fit within the float's mantissa digits,
                     // we can safely just cast with values known at compile time.
-                    if <$from>::BITS <= <$to>::MANTISSA_DIGITS {
+                    if <$from>::BITS <= (<$to>::MANTISSA_DIGITS) {
                         return Ok(self as $to)
                     }
 
@@ -108,35 +108,60 @@ macro_rules! cast {
         )*
     };
 
-    (float_to_int $from:ty => $($to:ty),+) => {
+    (float_to_int $from:ty as $int:ty => $($to:ty),+) => {
         $(
             impl CastImpl<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
 
                 #[inline]
                 fn cast_impl(self) -> Result<$to, Self::Error> {
-                    // This leverages the int_to_float cast test to check for lossiness.
-                    // The basic idea is to cast via `as` to the target integer type, then cast
-                    // back with checking (via `cast_impl`) to see whether the round trip was
-                    // lossless. We need to explicitly test for infinite but otherwise are correct
-                    // to use the direct equality testing of floats (despite that being typically
-                    // inadvisable). The breakdown of cases is as follow:
-                    // * Casting NaN or INFINITY will register as lossy due to checking is_finite()
-                    // * Casting 0 will register as lossless, regardless of sign
-                    // * Casting a non-integer will register as lossy
-                    // * Casting an integer in range will register as lossless
-                    // * Casting an integer out of range (including negative to unsigned types)
-                    // will register as lossy
-                    let value = self as $to;
+                    // Compute bit count constants for this floating point type
+                    const TOTAL_BITS: u32 = core::mem::size_of::<$from>() as u32 * 8;
+                    const SIGN_BITS: u32 = 1;
+                    const MANTISSA_BITS: u32 = <$from>::MANTISSA_DIGITS - 1;
+                    const EXPONENT_BITS: u32 = TOTAL_BITS - MANTISSA_BITS - SIGN_BITS;
                     
-                    let matt = CastImpl::<$from>::cast_impl(value);
-                    println!("[MATT] F-to-I: {matt:?} [Self: {self}][Finite: {}]", self.is_finite());
+                    // Compute mask constants for this floating point type
+                    const MANTISSA_MASK: $int = <$int>::MAX >> (TOTAL_BITS - MANTISSA_BITS);
+                    const EXPONENT_MASK: $int = <$int>::MAX >> (TOTAL_BITS - EXPONENT_BITS);
+                    const EXPONENT_BIAS: $int = EXPONENT_MASK >> 1;
                     
-                    match CastImpl::<$from>::cast_impl(value) {
-                        Ok(restored) if self.is_finite() && restored == self => Ok(value),
-                        _ => Err(LossyCastError {
+                    // Extract the exponent from the raw bits
+                    let bits = self.to_bits();
+                    let exponent = (bits >> MANTISSA_BITS) & EXPONENT_MASK;
+                    
+                    // Check the exponent to determine whether the float is an int
+                    let is_int = match exponent {
+                        // A zero exponent implies a subnormal: either a fraction or the value 0
+                        0 => (bits & MANTISSA_MASK) == 0,
+                        
+                        // A max exponent indicates infinity or NaN; in all cases, not an integer
+                        EXPONENT_MASK => false,
+                        
+                        // Not a special case exponent, so adjust for the bias
+                        exponent => match exponent.checked_sub(EXPONENT_BIAS) {
+                            // A negative exponent implies a fraction
+                            None => false,
+                            
+                            // Positive exponent; adjust the mantissa for the exponent and determine 
+                            // whether there any remaining bits to make this a fraction
+                            Some(exponent) => {
+                                let mask = MANTISSA_MASK.checked_shr(exponent as u32).unwrap_or(0); 
+                                (bits & (mask)) == 0
+                            }
+                        }
+                    };
+                    
+                    // If the float is an int we also need to check that it is in the target type's
+                    // range; for this it is sufficient to compare with the target type's MIN and
+                    // MAX casted as the float. The only MIN/MAX that doesn't convert to floating
+                    // point losslessly is u128::MAX as f32, and this becomes positive infinity
+                    // which still makes our check correct.
+                    match is_int && self >= <$to>::MIN as $from && self <= <$to>::MAX as $from {
+                        true => Ok(self as $to),
+                        false => Err(LossyCastError {
                             from: self,
-                            to: value
+                            to: self as $to
                         })
                     }
                 }
@@ -204,8 +229,8 @@ cast!(integer isize => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, 
 
 cast!(int_to_float u32, u64, u128, usize, i32, i64, i128, isize => f32);
 cast!(int_to_float u64, u128, usize, i64, i128, isize => f64);
-cast!(float_to_int f32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
-cast!(float_to_int f64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+cast!(float_to_int f32 as u32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+cast!(float_to_int f64 as u64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
 cast!(lossless u8 => u8, u16, u32, u64, u128, i16, i32, i64, i128, f32, f64);
 cast!(lossless u16 => u16, u32, u64, u128, i32, i64, i128, f32, f64);

@@ -51,50 +51,19 @@ macro_rules! cast {
 
                 #[inline]
                 fn cast_impl(self) -> Result<$to, Self::Error> {
-                    // If the int's type can entirely fit within the float's mantissa digits,
-                    // we can safely just cast with values known at compile time.
-                    if <$from>::BITS <= (<$to>::MANTISSA_DIGITS) {
-                        return Ok(self as $to)
+                    // This implementation leverages the float_to_int cast to do a checked round
+                    // cast: int -> float -> int, where the float -> int portion is checked. If
+                    // the float -> int portion is lossless AND yields the starting value, the 
+                    // int -> float portion must also have been lossless; otherwise, it must have
+                    // been lossy.
+                    let value = self as $to;
+                    match CastImpl::<$from>::cast_impl(value) {
+                        Ok(this) if this == self => Ok(value),
+                        _ => Err(LossyCastError {
+                            from: self,
+                            to: value
+                        })
                     }
-
-                    // Compute the absolute value; we use abs_diff() because it is defined on both
-                    // signed and unsigned integers and works for minimum signed numbers.
-                    let value = self.abs_diff(0);
-
-                    // If the int's value fits within the float's mantissa digits, we can safely
-                    // just cast. The formula for the max int should be 2^MANTISSA_DIGITS - 1, but
-                    // we use 2^MANTISSA_DIGITS because otherwise we would have to handle the
-                    // overflowing case specially. Since 2^MANTISSA_DIGITS is an in-range power of 2
-                    // it should work anyway by the later check.
-                    if value as $from <= (2 as $from).saturating_pow(<$to>::MANTISSA_DIGITS) {
-                        // This check involves casting back to $from; if $from was unsigned this is
-                        // a no-op -- that is, the value is unchanged. If $from was signed this is
-                        // also a no-op unless self was specifically $from::MIN, in which case it
-                        // restores the value to $from::MIN. Since that will be negative this check
-                        // will be trivially true in that case; this is acceptable because the
-                        // absolute value of $from::MIN is always an in-range power of two, so it
-                        // would pass the next check anyway.
-                        return Ok(self as $to)
-                    }
-
-                    // If the int is a power of 2 and in range we can safely just cast. For the
-                    // range test it is sufficient to just cast $to::MAX to $from because either it
-                    // is larger than $from::MAX in which case the bounds check is unnecessary and
-                    // harmless, or else it is smaller than $from::MAX and thus will round toward
-                    // zero, which is what we want. Note also that only u128::MAX is in danger of
-                    // failing the self <= MAX_FLOAT_AS_INT check, as the only power of two which
-                    // exceeds any floating point max.
-                    if value.is_power_of_two() && self <= <$to>::MAX as $from {
-                        return Ok(self as $to)
-                    }
-                    
-                    println!("[MATT] I-to-F: [Self: {self}][Value: {value}][MaxMantissa: {}", (2 as $from).saturating_pow(<$to>::MANTISSA_DIGITS));
-
-                    // All the lossless cases have been covered, so this cast is lossy
-                    Err(LossyCastError {
-                        from: self,
-                        to: self as $to
-                    })
                 }
             }
 
@@ -157,6 +126,7 @@ macro_rules! cast {
                     // MAX casted as the float. The only MIN/MAX that doesn't convert to floating
                     // point losslessly is u128::MAX as f32, and this becomes positive infinity
                     // which still makes our check correct.
+                    // MATT TODO: this statement about lossless MAX isn't true and is broken
                     match is_int && self >= <$to>::MIN as $from && self <= <$to>::MAX as $from {
                         true => Ok(self as $to),
                         false => Err(LossyCastError {

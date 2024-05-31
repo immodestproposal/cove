@@ -9,41 +9,59 @@ use util::FixedString;
 #[test]
 
 fn random() {
-    // Determine the initial seed
+    const ITERATIONS: usize = 1000;
+    
+    // Initialization: allocate space for the test buffers and determine the initial seed
+    let mut from_buffer = TestString::new();
+    let mut to_buffer = TestString::new();
     let mut value = random_seed();
+    
+    // Helper macro for checking a cast
+    macro_rules! check_cast {
+        ($value:expr; $from:ty => $($to:ty),*) => {
+            $(check_cast::<$from, $to>($value, &mut from_buffer, &mut to_buffer);)*
+        }
+    }
 
-    for _ in 0 .. 100000 {
-        let float = f32::from_bits(value);
-        check_cast::<f32, i8>(float);
-        check_cast::<f32, i16>(float);
-        check_cast::<f32, i32>(float);
-        check_cast::<f32, i64>(float);
-        check_cast::<f32, i128>(float);
-        check_cast::<f32, u8>(float);
-        check_cast::<f32, u16>(float);
-        check_cast::<f32, u32>(float);
-        check_cast::<f32, u64>(float);
-        check_cast::<f32, u128>(float);
-
+    // Test: f32 to various int types
+    for _ in 0 .. ITERATIONS {
+        // Use a random bit pattern
         value = random_next(value);
+        let float = f32::from_bits(value);
+        
+        // Perform the tests
+        check_cast!(float; f32 => i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+    }
+
+    // Test: f64 to various int types
+    for _ in 0 .. ITERATIONS {
+        // Use a random bit pattern
+        let high = random_next(value);
+        value = random_next(high);
+        let float = f64::from_bits((u64::from(high) << 32) | u64::from(value));
+        
+        // Perform the tests
+        check_cast!(float; f64 => i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
     }
 }
+
+type TestString = FixedString<5192>;
 
 fn check_cast<
     FROM: Copy + Display + Cast + CastImpl<TO, Error = LossyCastError<FROM, TO>>, 
     TO: Copy + Display
->(from: FROM) {
+>(from: FROM, from_buffer: &mut TestString, to_buffer: &mut TestString) {
     let result = from.cast::<TO>();
     let to = result.lossy();
 
     // Determines whether two numbers are equal through a bit of an unorthodox method:
     // comparing their formatted view. This allows us to not depend on casting, which is after all
     // what we are testing. Start by formatting the values into buffer.
-    let mut from_buffer = FixedString::<256>::new();
-    write!(&mut from_buffer, "{from:.64}").unwrap();
+    from_buffer.clear();
+    write!(from_buffer, "{from:.1024}").unwrap();
 
-    let mut to_buffer = FixedString::<256>::new();
-    write!(&mut to_buffer, "{to:.64}").unwrap();
+    to_buffer.clear();
+    write!(to_buffer, "{to:.1024}").unwrap();
 
     // Normalize the strings and compare
     let from_text = normalize(from_buffer.as_str());

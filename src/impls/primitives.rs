@@ -120,38 +120,38 @@ macro_rules! cast {
                     const SIGN_BITS: u32 = 1;
                     const MANTISSA_BITS: u32 = <$from>::MANTISSA_DIGITS - 1;
                     const EXPONENT_BITS: u32 = TOTAL_BITS - MANTISSA_BITS - SIGN_BITS;
-                    
+
                     // Compute mask constants for this floating point type
                     const MANTISSA_MASK: $int = <$int>::MAX >> (TOTAL_BITS - MANTISSA_BITS);
                     const EXPONENT_MASK: $int = <$int>::MAX >> (TOTAL_BITS - EXPONENT_BITS);
                     const EXPONENT_BIAS: $int = EXPONENT_MASK >> 1;
-                    
+
                     // Extract the exponent from the raw bits
                     let bits = self.to_bits();
                     let exponent = (bits >> MANTISSA_BITS) & EXPONENT_MASK;
-                    
+
                     // Check the exponent to determine whether the float is an int
                     let is_int = match exponent {
                         // A zero exponent implies a subnormal: either a fraction or the value 0
                         0 => (bits & MANTISSA_MASK) == 0,
-                        
+
                         // A max exponent indicates infinity or NaN; in all cases, not an integer
                         EXPONENT_MASK => false,
-                        
+
                         // Not a special case exponent, so adjust for the bias
                         exponent => match exponent.checked_sub(EXPONENT_BIAS) {
                             // A negative exponent implies a fraction
                             None => false,
-                            
-                            // Positive exponent; adjust the mantissa for the exponent and determine 
+
+                            // Positive exponent; adjust the mantissa for the exponent and determine
                             // whether there any remaining bits to make this a fraction
                             Some(exponent) => {
-                                let mask = MANTISSA_MASK.checked_shr(exponent as u32).unwrap_or(0); 
+                                let mask = MANTISSA_MASK.checked_shr(exponent as u32).unwrap_or(0);
                                 (bits & (mask)) == 0
                             }
                         }
                     };
-                    
+
                     // If the float is an int we also need to check that it is in the target type's
                     // range; for this it is sufficient to compare with the target type's MIN and
                     // MAX casted as the float. The only MIN/MAX that doesn't convert to floating

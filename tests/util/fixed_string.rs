@@ -9,6 +9,7 @@ pub struct FixedString<const LEN: usize> {
 }
 
 impl<const LEN: usize> FixedString<LEN> {
+    /// Instantiates a new, empty `FixedString`
     pub fn new() -> Self {
         Self {
             buffer: [0u8; LEN],
@@ -16,8 +17,15 @@ impl<const LEN: usize> FixedString<LEN> {
         }
     }
 
+    /// Returns the contents of the `FixedString` as a &str
     pub fn as_str(&self) -> &str {
         core::str::from_utf8(&self.buffer[.. self.index]).unwrap()
+    }
+    
+    /// Clears the contents of the `FixedString` to restore it to a new()-like state; this is faster
+    /// than instantiating a new one.
+    pub fn clear(&mut self) {
+        self.index = 0;
     }
 }
 

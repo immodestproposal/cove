@@ -77,7 +77,7 @@ macro_rules! cast {
         )*
     };
 
-    (float_to_int $from:ty as $int:ty => $($to:ty),+) => {
+    (float_to_int $from:ty as $int:ty => $(($to:ty, $max:expr)),+) => {
         $(
             impl CastImpl<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
@@ -122,12 +122,10 @@ macro_rules! cast {
                     };
 
                     // If the float is an int we also need to check that it is in the target type's
-                    // range; for this it is sufficient to compare with the target type's MIN and
-                    // MAX casted as the float. The only MIN/MAX that doesn't convert to floating
-                    // point losslessly is u128::MAX as f32, and this becomes positive infinity
-                    // which still makes our check correct.
-                    // MATT TODO: this statement about lossless MAX isn't true and is broken
-                    match is_int && self >= <$to>::MIN as $from && self <= <$to>::MAX as $from {
+                    // range. All integer MIN values can be casted losslessly to floats, but this
+                    // is not true for all MAXs; therefore, we accept the max castable as a macro
+                    // argument (in float form).
+                    match is_int && self >= <$to>::MIN as $from && self <= $max {
                         true => Ok(self as $to),
                         false => Err(LossyCastError {
                             from: self,
@@ -199,8 +197,36 @@ cast!(integer isize => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, 
 
 cast!(int_to_float u32, u64, u128, usize, i32, i64, i128, isize => f32);
 cast!(int_to_float u64, u128, usize, i64, i128, isize => f64);
-cast!(float_to_int f32 as u32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
-cast!(float_to_int f64 as u64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+
+// Supply precomputed max values for each integer type
+cast!(
+    float_to_int f32 as u32 => 
+    (u8, 255_f32), // Same as MAX
+    (u16, 65_535_f32), // Same as MAX
+    (u32, 4_294_967_040_f32), 
+    (u64, 18_446_742_974_197_923_840_f32), 
+    (u128, f32::INFINITY), 
+    (i8, 127_f32), // Same as MAX
+    (i16, 32_767_f32), // Same as MAX
+    (i32, 2_147_483_520_f32),
+    (i64, 9_223_371_487_098_961_920_f32),
+    (i128, 170_141_173_319_264_429_905_852_091_742_258_462_720_f32)
+);
+
+// Supply precomputed max values for each integer type
+cast!(
+    float_to_int f64 as u64 => 
+    (u8, 255_f64), // Same as MAX
+    (u16, 65_535_f64), // Same as MAX
+    (u32, 4_294_967_295_f64), // Same as MAX
+    (u64, 18_446_744_073_709_549_568_f64),
+    (u128, 340_282_366_920_938_425_684_442_744_474_606_501_888_f64),
+    (i8, 127_f64), // Same as MAX
+    (i16, 32_767_f64), // Same as MAX
+    (i32, 2_147_483_647_f64), // Same as MAX
+    (i64, 9_223_372_036_854_774_784_f64),
+    (i128, 170_141_183_460_469_212_842_221_372_237_303_250_944_f64)
+);
 
 cast!(lossless u8 => u8, u16, u32, u64, u128, i16, i32, i64, i128, f32, f64);
 cast!(lossless u16 => u16, u32, u64, u128, i32, i64, i128, f32, f64);
@@ -229,6 +255,12 @@ mod platform_dependent {
 
     cast!(lossless u8, u16 => usize);
     cast!(lossless u8, i8, i16 => isize);
+
+    cast!(float_to_int f32 as u32 => (usize, 65_535_f32));
+    cast!(float_to_int f32 as u32 => (isize, 32_767_f32));
+
+    cast!(float_to_int f64 as u64 => (usize, 65_535_f64));
+    cast!(float_to_int f64 as u64 => (isize, 32_767_f64));
 }
 
 #[cfg(target_pointer_width = "32")]
@@ -240,6 +272,12 @@ mod platform_dependent {
 
     cast!(lossless u8, u16, u32 => usize);
     cast!(lossless u8, u16, i8, i16, i32 => isize);
+
+    cast!(float_to_int f32 as u32 => (usize, 4_294_967_040_f32));
+    cast!(float_to_int f32 as u32 => (isize, 2_147_483_520_f32));
+
+    cast!(float_to_int f64 as u64 => (usize, 4_294_967_295_f64));
+    cast!(float_to_int f64 as u64 => (isize, 2_147_483_647_f64));
 }
 
 #[cfg(target_pointer_width = "64")]
@@ -251,6 +289,12 @@ mod platform_dependent {
 
     cast!(lossless u8, u16, u32, u64 => usize);
     cast!(lossless u8, u16, u32, i8, i16, i32, i64 => isize);
+
+    cast!(float_to_int f32 as u32 => (usize, 18_446_742_974_197_923_840_f32));
+    cast!(float_to_int f32 as u32 => (isize, 9_223_371_487_098_961_920_f32));
+
+    cast!(float_to_int f64 as u64 => (usize, 18_446_744_073_709_549_568_f64));
+    cast!(float_to_int f64 as u64 => (isize, 9_223_372_036_854_774_784_f64));
 }
 
 // -- Manual Implementations -- //

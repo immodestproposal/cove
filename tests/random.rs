@@ -30,7 +30,7 @@ fn random() {
         let float = f32::from_bits(value);
         
         // Perform the tests
-        check_cast!(float; f32 => i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+        check_cast!(float; f32 => i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
     }
 
     // Test: f64 to various int types
@@ -41,7 +41,7 @@ fn random() {
         let float = f64::from_bits((u64::from(high) << 32) | u64::from(value));
         
         // Perform the tests
-        check_cast!(float; f64 => i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
+        check_cast!(float; f64 => i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
     }
 }
 

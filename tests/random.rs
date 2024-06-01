@@ -2,7 +2,7 @@ mod util;
 
 use cove::prelude::*;
 use core::fmt::{Display, Write};
-use cove::base::CastImpl;
+use cove::base::CastTo;
 use cove::errors::LossyCastError;
 use util::FixedString;
 
@@ -48,7 +48,7 @@ fn random() {
 type TestString = FixedString<5192>;
 
 fn check_cast<
-    FROM: Copy + Display + Cast + CastImpl<TO, Error = LossyCastError<FROM, TO>>, 
+    FROM: Copy + Display + Cast + CastTo<TO, Error = LossyCastError<FROM, TO>>,
     TO: Copy + Display
 >(from: FROM, from_buffer: &mut TestString, to_buffer: &mut TestString) {
     let result = from.cast::<TO>();

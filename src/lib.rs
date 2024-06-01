@@ -226,7 +226,7 @@
 //!     platform.
 //!
 //! ### Extending Support
-//! Extending cove's casts to new types involves implementing [`base::CastImpl`]; see the
+//! Extending cove's casts to new types involves implementing [`base::CastTo`]; see the
 //! documentation for [`base`] for more details.
 //!
 //! ### Guidelines
@@ -288,7 +288,6 @@
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
 // TODO: tests (both std and no_std): also cross-compiled for pointer widths
-// TODO: consider renaming CastImpl -> CastTo
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
 // TODO:    * re-read all docs for correctness

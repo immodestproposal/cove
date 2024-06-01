@@ -3,8 +3,8 @@
 //! This module is for extending casting support; if you only need to use existing casts this
 //! module will be irrelevant to you, but it is needed for extending cove's casts to new types.
 //!
-//! Casting functionality is split between [`CastImpl`] and [`Cast`](crate::casts::Cast) because
-//! [`CastImpl`] is more flexible to implement while [`Cast`](crate::casts::Cast) is more
+//! Casting functionality is split between [`CastTo`] and [`Cast`](crate::casts::Cast) because
+//! [`CastTo`] is more flexible to implement while [`Cast`](crate::casts::Cast) is more
 //! ergonomic to use. Without this divide it would be difficult to provide easy turbofish-based type
 //! resolution in the face of ambiguity. For example, the following:
 //!
@@ -17,8 +17,8 @@
 //! would have to be expressed in two lines like this:
 //!
 //! ```
-//! # use cove::base::CastImpl;
-//! let foo: u8 = 5u16.cast_impl()?;
+//! # use cove::base::CastTo;
+//! let foo: u8 = 5u16.cast_to()?;
 //! assert_eq!(foo, 5u8);
 //! # Ok::<(), Box<cove::errors::LossyCastError<u16, u8>>>(())
 //! ```
@@ -26,15 +26,15 @@
 //! ...or else one rather awkward line:
 //!
 //! ```
-//! # use cove::base::CastImpl;
-//! assert_eq!(<u16 as CastImpl<u8>>::cast_impl(5)?, 5u8);
+//! # use cove::base::CastTo;
+//! assert_eq!(<u16 as CastTo<u8>>::cast_to(5)?, 5u8);
 //! # Ok::<(), Box<cove::errors::LossyCastError<u16, u8>>>(())
 //! ```
 //!
-//! Implement [`CastImpl`] to extend casting functionality to new types, and the follow-on extension
+//! Implement [`CastTo`] to extend casting functionality to new types, and the follow-on extension
 //! traits ([`AssumedLossless`](crate::casts::AssumedLossless) /
 //! [`Closest`](crate::casts::Closest) / [`Lossless`](crate::casts::Lossless) /
-//! [`Lossy`](crate::casts::Lossy)) as appropriate. Upon implementing [`CastImpl`], be sure to also
+//! [`Lossy`](crate::casts::Lossy)) as appropriate. Upon implementing [`CastTo`], be sure to also
 //! implement [`Cast`](crate::casts::Cast) using the default implementation; essentially, just mark
 //! the type as implementing [`Cast`](crate::casts::Cast).
 //!
@@ -42,7 +42,7 @@
 //!
 //! ```
 //! use cove::prelude::*;
-//! use cove::base::CastImpl;
+//! use cove::base::CastTo;
 //! use cove::errors::LossyCastError;
 //!
 //! // Define a newtype to serve as an example of extending casting support
@@ -52,13 +52,13 @@
 //! // Mark the newtype as supporting Cast
 //! impl Cast for Wrapper {}
 //!
-//! // Provide casting from the newtype to u8 by implementing CastImpl
-//! impl CastImpl<u8> for Wrapper {
+//! // Provide casting from the newtype to u8 by implementing CastTo
+//! impl CastTo<u8> for Wrapper {
 //!     // Here we re-use cove's LossyCastError, but that is not required
 //!     type Error = LossyCastError<Self, u8>;
 //!
 //!     // Provide the actual implementation
-//!     fn cast_impl(self) -> Result<u8, Self::Error> {
+//!     fn cast_to(self) -> Result<u8, Self::Error> {
 //!         // For this implementation we delegate to the u16 -> u8 cast implementation and just
 //!         // adapt the error type
 //!         self.0.cast::<u8>().map_err(|error| LossyCastError {
@@ -86,8 +86,8 @@
 /// [`Cast`](crate::casts::Cast) to new types.
 ///
 /// See the [module documentation](crate::base) for an example.
-pub trait CastImpl<T> {
-    /// Specifies the error type returned from [`cast_impl`](CastImpl::cast_impl) and by
+pub trait CastTo<T> {
+    /// Specifies the error type returned from [`cast_to`](CastTo::cast_to) and by
     /// extension from [`Cast::cast`](crate::casts::Cast::cast). Note that some blanket
     /// implementations for the follow-on extension traits may apply if this is one of the error
     /// types provided by this crate ([`LossyCastError`](crate::errors::LossyCastError) /
@@ -99,5 +99,5 @@ pub trait CastImpl<T> {
     ///
     /// # Errors
     /// Returns `Err` if the cast is lossy; that is, if the casted value is not equal to `self`
-    fn cast_impl(self) -> Result<T, Self::Error>;
+    fn cast_to(self) -> Result<T, Self::Error>;
 }

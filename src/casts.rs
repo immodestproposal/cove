@@ -3,7 +3,7 @@
 //! See the [`crate documentation`](crate) for an overview, or jump right in with the [`Cast`]
 //! trait.
 
-use crate::base::CastImpl;
+use crate::base::CastTo;
 
 /// Extension trait for fallibly casting between numerical types with error detection
 ///
@@ -86,8 +86,8 @@ pub trait Cast {
     /// to [`TryFrom::try_from`] / [`TryInto::try_into`]. Note that performance may actually improve
     /// when follow-on extension traits are applied to the returned [`Result`].
     #[inline]
-    fn cast<T>(self) -> Result<T, Self::Error> where Self: Sized + CastImpl<T> {
-        self.cast_impl()
+    fn cast<T>(self) -> Result<T, Self::Error> where Self: Sized + CastTo<T> {
+        self.cast_to()
     }
 }
 

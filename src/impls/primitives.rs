@@ -4,7 +4,7 @@
 
 use crate::casts::{Cast, Closest};
 use crate::errors::LossyCastError;
-use crate::base::CastImpl;
+use crate::base::CastTo;
 use super::LosslessCast;
 
 macro_rules! cast {
@@ -16,11 +16,11 @@ macro_rules! cast {
 
     (integer $from:ty => $($to:ty),+) => {
         $(
-            impl CastImpl<$to> for $from {
+            impl CastTo<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
 
                 #[inline]
-                fn cast_impl(self) -> Result<$to, Self::Error> {
+                fn cast_to(self) -> Result<$to, Self::Error> {
                     self.try_into().map_err(|_| LossyCastError {
                         from: self,
                         to: self as $to
@@ -46,18 +46,18 @@ macro_rules! cast {
 
     (int_to_float $from:ty => $($to:ty),+) => {
         $(
-            impl CastImpl<$to> for $from {
+            impl CastTo<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
 
                 #[inline]
-                fn cast_impl(self) -> Result<$to, Self::Error> {
+                fn cast_to(self) -> Result<$to, Self::Error> {
                     // This implementation leverages the float_to_int cast to do a checked round
                     // cast: int -> float -> int, where the float -> int portion is checked. If
                     // the float -> int portion is lossless AND yields the starting value, the 
                     // int -> float portion must also have been lossless; otherwise, it must have
                     // been lossy.
                     let value = self as $to;
-                    match CastImpl::<$from>::cast_impl(value) {
+                    match CastTo::<$from>::cast_to(value) {
                         Ok(this) if this == self => Ok(value),
                         _ => Err(LossyCastError {
                             from: self,
@@ -79,11 +79,11 @@ macro_rules! cast {
 
     (float_to_int $from:ty as $int:ty => $(($to:ty, $max:expr)),+) => {
         $(
-            impl CastImpl<$to> for $from {
+            impl CastTo<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
 
                 #[inline]
-                fn cast_impl(self) -> Result<$to, Self::Error> {
+                fn cast_to(self) -> Result<$to, Self::Error> {
                     // Compute bit count constants for this floating point type
                     const TOTAL_BITS: u32 = core::mem::size_of::<$from>() as u32 * 8;
                     const SIGN_BITS: u32 = 1;
@@ -298,11 +298,11 @@ mod platform_dependent {
 }
 
 // -- Manual Implementations -- //
-impl CastImpl<f64> for f32 {
+impl CastTo<f64> for f32 {
     type Error = LossyCastError<Self, f64>;
     
     #[inline]
-    fn cast_impl(self) -> Result<f64, Self::Error> {
+    fn cast_to(self) -> Result<f64, Self::Error> {
         Ok(f64::from(self))
     }    
 }
@@ -314,11 +314,11 @@ impl Closest<f64> for f32 {
     }
 }
 
-impl CastImpl<f32> for f64 {
+impl CastTo<f32> for f64 {
     type Error = LossyCastError<Self, f32>;
 
     #[inline]
-    fn cast_impl(self) -> Result<f32, Self::Error> {
+    fn cast_to(self) -> Result<f32, Self::Error> {
         // Perform the cast
         #[allow(clippy::cast_possible_truncation)]
         let value = self as f32;

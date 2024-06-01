@@ -18,7 +18,7 @@
 
 use cove::prelude::*;
 use cove::errors::LossyCastError;
-use cove::base::CastImpl;
+use cove::base::CastTo;
 
 /// Integer-to-integer narrowing conversions for comparing generated ASM; use
 /// `cargo asm --example asm cast_u32_to_u8` to compare. When comparing assembly, it may be helpful
@@ -76,7 +76,7 @@ fn main() {
 /// Provides a value which cannot be known at compile time, to help disable optimizations
 #[cfg(feature = "std")]
 #[allow(clippy::cast_possible_truncation)]
-fn unpredictable<T>() -> T where u128: CastImpl<T, Error = LossyCastError<u128, T>> {
+fn unpredictable<T>() -> T where u128: CastTo<T, Error = LossyCastError<u128, T>> {
     use std::time::SystemTime;
 
     // Just use the count of milliseconds since the epoch
@@ -91,7 +91,7 @@ fn unpredictable<T>() -> T where u128: CastImpl<T, Error = LossyCastError<u128, 
 /// as appropriate for the target system. It should produce a value which cannot be known at
 /// compile time, to help disable optimizations.
 #[cfg(not(feature = "std"))]
-fn unpredictable<T>() -> T where u8: CastImpl<T, Error = LossyCastError<u8, T>> {
+fn unpredictable<T>() -> T where u8: CastTo<T, Error = LossyCastError<u8, T>> {
     // Placeholder value chosen arbitrarily
     12u8.cast().lossy()
 }

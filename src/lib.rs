@@ -288,6 +288,7 @@
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
 // TODO: tests (both std and no_std): also cross-compiled for pointer widths
+// TODO: consider renaming CastImpl -> CastTo
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
 // TODO:    * re-read all docs for correctness

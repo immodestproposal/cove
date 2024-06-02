@@ -4,7 +4,7 @@
 
 use crate::casts::{Cast, Closest};
 use crate::errors::{FailedCastError, LossyCastError};
-use crate::base::CastTo;
+use crate::base::CastImpl;
 use super::LosslessCast;
 
 use core::num::{
@@ -85,11 +85,11 @@ macro_rules! cast {
     // -- Sub-macros -- //
     (@nonzero $from:ty => ($($to:ty),+)) => {
         $(
-            impl CastTo<$to> for $from {
+            impl CastImpl<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
 
                 #[inline]
-                fn cast_to(self) -> Result<$to, Self::Error> {
+                fn cast_impl(self) -> Result<$to, Self::Error> {
                     // Safe to use `new_unchecked` because the value cannot be zero
                     match self.get().cast() {
                         Ok(value) => Ok(unsafe {<$to>::new_unchecked(value)}),
@@ -120,11 +120,11 @@ macro_rules! cast {
 
     (@to_primitive $from:ty => ($($to:ty),+)) => {
         $(
-            impl CastTo<$to> for $from {
+            impl CastImpl<$to> for $from {
                 type Error = LossyCastError<Self, $to>;
 
                 #[inline]
-                fn cast_to(self) -> Result<$to, Self::Error> {
+                fn cast_impl(self) -> Result<$to, Self::Error> {
                     self.get().cast::<$to>().map_err(|error| LossyCastError {
                         from: self,
                         to: error.to
@@ -163,11 +163,11 @@ macro_rules! cast {
 
     (@from_primitive $from:ty => ($($to:ty),+)) => {
         $(
-            impl CastTo<$to> for $from {
+            impl CastImpl<$to> for $from {
                 type Error = FailedCastError<Self, $to>;
 
                 #[inline]
-                fn cast_to(self) -> Result<$to, Self::Error> {
+                fn cast_impl(self) -> Result<$to, Self::Error> {
                     // Cast to the root primitive of the nonzero before creating the nonzero
                     let primitive = self.cast().map_err(|_error| FailedCastError::new(self))?;
                     <$to>::new(primitive).ok_or_else(|| FailedCastError::new(self))

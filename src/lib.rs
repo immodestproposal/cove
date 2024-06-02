@@ -226,8 +226,13 @@
 //!     platform.
 //!
 //! ### Extending Support
-//! Extending cove's casts to new types involves implementing [`base::CastTo`]; see the
+//! Extending cove's casts to new types involves implementing [`base::CastImpl`]; see the
 //! documentation for [`base`] for more details.
+//! 
+//! ### Generic Bounds
+//! As with all traits, Cove's casting traits may be used as bounds on generic parameters to a 
+//! function. Cove provides the convenience subtrait [`casts::CastTo`] to simplify this in the 
+//! most common cases; see its documentation for an example. 
 //!
 //! ### Guidelines
 //! It might seem challenging to determine which type of cast to use in which circumstances.

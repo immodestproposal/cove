@@ -11,28 +11,28 @@ use core::marker::PhantomData;
 /// This is used for most of cove's casts, and enables usage of various follow-on traits; see the
 /// [`crate documentation`](crate) for an overview.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct LossyCastError<CastFrom, CastTo> {
+pub struct LossyCastError<CastFrom, CastImpl> {
     /// The original value before the cast
     pub from: CastFrom,
 
     /// The lossy value after the cast
-    pub to: CastTo
+    pub to: CastImpl
 }
 
-impl<CastFrom: Display, CastTo: Display> Display for LossyCastError<CastFrom, CastTo> {
+impl<CastFrom: Display, CastImpl: Display> Display for LossyCastError<CastFrom, CastImpl> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             formatter,
             "Numerical cast was lossy [{} ({}) -> {} ({})]",
             self.from, core::any::type_name::<CastFrom>(),
-            self.to, core::any::type_name::<CastTo>()
+            self.to, core::any::type_name::<CastImpl>()
         )
     }
 }
 
 #[cfg(feature = "std")]
-impl<CastFrom: Debug + Display, CastTo: Debug + Display>
-std::error::Error for LossyCastError<CastFrom, CastTo> {}
+impl<CastFrom: Debug + Display, CastImpl: Debug + Display>
+std::error::Error for LossyCastError<CastFrom, CastImpl> {}
 
 // -- FailedCastError -- //
 /// Indicates that a cast between numeric types would have lost data but could not even create the
@@ -43,15 +43,15 @@ std::error::Error for LossyCastError<CastFrom, CastTo> {}
 /// without invoking undefined behavior. This error enables usage of various follow-on traits; see
 /// the [`crate documentation`](crate) for an overview.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct FailedCastError<CastFrom, CastTo> {
+pub struct FailedCastError<CastFrom, CastImpl> {
     /// The original value before the cast
     pub from: CastFrom,
 
     // -- Implementation -- //
-    to: PhantomData<CastTo>
+    to: PhantomData<CastImpl>
 }
 
-impl<CastFrom, CastTo> FailedCastError<CastFrom, CastTo> {
+impl<CastFrom, CastImpl> FailedCastError<CastFrom, CastImpl> {
     /// Creates a new [`FailedCastError`] from the provided `source`
     pub fn new(source: CastFrom) -> Self {
         Self {
@@ -61,18 +61,18 @@ impl<CastFrom, CastTo> FailedCastError<CastFrom, CastTo> {
     }
 }
 
-impl<CastFrom: Display, CastTo> Display for FailedCastError<CastFrom, CastTo> {
+impl<CastFrom: Display, CastImpl> Display for FailedCastError<CastFrom, CastImpl> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             formatter,
             "Numerical cast failed [{} ({}) -> ({})]",
             self.from,
             core::any::type_name::<CastFrom>(),
-            core::any::type_name::<CastTo>()
+            core::any::type_name::<CastImpl>()
         )
     }
 }
 
 #[cfg(feature = "std")]
-impl<CastFrom: Debug + Display, CastTo: Debug>
-std::error::Error for FailedCastError<CastFrom, CastTo> {}
+impl<CastFrom: Debug + Display, CastImpl: Debug>
+std::error::Error for FailedCastError<CastFrom, CastImpl> {}

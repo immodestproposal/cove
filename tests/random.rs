@@ -1,62 +1,96 @@
 mod util;
 
+use cove::casts::CastTo;
 use cove::prelude::*;
 use core::fmt::{Display, Write};
-use cove::base::CastTo;
-use cove::errors::LossyCastError;
 use util::FixedString;
 
-#[test]
+// Helper macro for checking a cast
+macro_rules! check_cast {
+    ($from_buffer:expr, $to_buffer:expr, $value:expr; $from:ty => $($to:ty),*) => {
+        $(check_cast::<$from, $to>($value, $from_buffer, $to_buffer);)*
+    };
 
-fn random() {
-    const ITERATIONS: usize = 1000;
-    
-    // Initialization: allocate space for the test buffers and determine the initial seed
-    let mut from_buffer = TestString::new();
-    let mut to_buffer = TestString::new();
-    let mut value = random_seed();
-    
-    // Helper macro for checking a cast
-    macro_rules! check_cast {
-        ($value:expr; $from:ty => $($to:ty),*) => {
-            $(check_cast::<$from, $to>($value, &mut from_buffer, &mut to_buffer);)*
-        }
-    }
-
-    // Test: f32 to various int types
-    for _ in 0 .. ITERATIONS {
-        // Use a random bit pattern
-        value = random_next(value);
-        let float = f32::from_bits(value);
-        
-        // Perform the tests
-        check_cast!(float; f32 => i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
-    }
-
-    // Test: f64 to various int types
-    for _ in 0 .. ITERATIONS {
-        // Use a random bit pattern
-        let high = random_next(value);
-        value = random_next(high);
-        let float = f64::from_bits((u64::from(high) << 32) | u64::from(value));
-        
-        // Perform the tests
-        check_cast!(float; f64 => i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
+    ($from_buffer:expr, $to_buffer:expr, $value:expr; $from:ty => all primitives) => {
+        check_cast!(
+            $from_buffer, $to_buffer, $value;
+            $from => i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
+        );
     }
 }
 
+#[test]
+
+fn random_f32() {
+    random(|value| {
+        // Build the f32 from the transmuted u32
+        (f32::from_bits(value), util::random_next(value))
+    });
+}
+
+#[test]
+
+fn random_f64() {
+    random(|high| {
+        // Build the f64 from a transmuted u64 created from high and low u32s
+        let low = util::random_next(high);
+        (f64::from_bits((u64::from(high) << 32) | u64::from(low)), util::random_next(low))
+    });
+}
+
+#[test]
+
+fn random_u64() {
+    random(|high| {
+        // Build the u64 from high and low u32s
+        let low = util::random_next(high);
+        ((u64::from(high) << 32) | u64::from(low), util::random_next(low))
+    });
+}
+
+fn random<
+    T: Copy + Display +
+    CastTo<i8>    + CastTo<u8>    +
+    CastTo<i16>   + CastTo<u16>   +
+    CastTo<i32>   + CastTo<u32>   +
+    CastTo<i64>   + CastTo<u64>   +
+    CastTo<i128>  + CastTo<u128>  +
+    CastTo<isize> + CastTo<usize> +
+    CastTo<f32>   + CastTo<f64>
+>(callback: impl Fn(u32) -> (T, u32)) {
+    // Initialization: allocate space for the test buffers and determine the initial seed
+    let mut from_buffer = TestString::new();
+    let mut to_buffer = TestString::new();
+    let mut random = util::random_seed();
+
+    // Perform the tests
+    for _ in 0 .. ITERATIONS {
+        // Generate the test value and the next random number via the callback
+        let (value, next_random) = callback(random);
+        random = next_random;
+
+        // Check casting the test value to each primitive type
+        check_cast!(
+            &mut from_buffer, &mut to_buffer, value;
+            T => i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize, f32, f64
+        );
+    }
+}
+
+const ITERATIONS: usize = 1000;
+
+/// Convenience alias for strings used in the tests
 type TestString = FixedString<5192>;
 
-fn check_cast<
-    FROM: Copy + Display + Cast + CastTo<TO, Error = LossyCastError<FROM, TO>>,
-    TO: Copy + Display
->(from: FROM, from_buffer: &mut TestString, to_buffer: &mut TestString) {
+/// Performs and checks the actual cast
+fn check_cast<FROM: Copy + Display + CastTo<TO>, TO: Copy + Display>
+(from: FROM, from_buffer: &mut TestString, to_buffer: &mut TestString) {
     let result = from.cast::<TO>();
     let to = result.lossy();
 
     // Determines whether two numbers are equal through a bit of an unorthodox method:
     // comparing their formatted view. This allows us to not depend on casting, which is after all
-    // what we are testing. Start by formatting the values into buffer.
+    // what we are testing. Start by formatting the values into the buffers.
     from_buffer.clear();
     write!(from_buffer, "{from:.1024}").unwrap();
 
@@ -66,16 +100,17 @@ fn check_cast<
     // Normalize the strings and compare
     let from_text = normalize(from_buffer.as_str());
     let to_text = normalize(to_buffer.as_str());
-    
+    let are_equal = (from_text == to_text) && (from_text != "NaN");
+
     #[allow(clippy::match_bool)]
     match result.is_ok() {
-        true if from_text == to_text => {},
+        true if are_equal => {},
         true => panic!(
             "Called lossy cast lossless [{from_text}_{} -> {to_text}_{}]",
             core::any::type_name::<FROM>(),
             core::any::type_name::<TO>()
         ),
-        false if from_text == to_text => panic!(
+        false if are_equal => panic!(
             "Called lossless cast lossy [{from_text}_{} -> {to_text}_{}]",
             core::any::type_name::<FROM>(),
             core::any::type_name::<TO>()
@@ -101,40 +136,5 @@ fn normalize(value: &str) -> &str {
         "-0" => "0",
         _ => value
     }
-}
-
-/// Creates a seed to a PRNG based on the current system time; note that this a terrible way to
-/// generate numbers that are truly close to random, but is good enough for our purposes and avoids
-/// introducing dependencies on crates outside of std.
-#[cfg(feature = "std")]
-#[allow(clippy::cast_possible_truncation)]
-fn random_seed() -> u32 {
-    use std::time::SystemTime;
-
-    // Take the milliseconds since the epoch and truncate to the least-significant (and therefore
-    // most volatile over time) digits
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_millis()
-        as u32
-}
-
-/// Provides a hardcoded seed that can be manually edited, for use with no_std
-#[cfg(not(feature = "std"))]
-#[allow(clippy::cast_possible_truncation)]
-fn random_seed() -> u32 {
-    0
-}
-
-/// Creates a new "random" number based on the given `seed` using a simple LCG. Note that this is a
-/// terrible way to generate numbers that are truly close to random, but is good enough for our
-/// purposes and avoids introducing dependencies on additional crates.
-fn random_next(seed: u32) -> u32 {
-    // Values come from Numerical Recipes book (summarized by Wikipedia); chosen to produce a
-    // full-period generator
-    seed
-        .wrapping_mul(1_664_525)
-        .wrapping_add(1_013_904_223)
 }
 

@@ -3,7 +3,8 @@
 //! See the [`crate documentation`](crate) for an overview, or jump right in with the [`Cast`]
 //! trait.
 
-use crate::base::CastTo;
+use crate::base::CastImpl;
+use crate::errors::LossyCastError;
 
 /// Extension trait for fallibly casting between numerical types with error detection
 ///
@@ -19,9 +20,13 @@ use crate::base::CastTo;
 ///
 /// | Origin Type       | Target Type       | Error Type                                          |
 /// | ---               | ---               | ---                                                 |
-/// | all primitives    | all primitives    | [`LossyCastError`](crate::errors::LossyCastError)   |
-/// | `NonZero*`        | all primitives    | [`LossyCastError`](crate::errors::LossyCastError)   |
+/// | all primitives    | all primitives    | [`LossyCastError`]                                  |
+/// | `NonZero*`        | all primitives    | [`LossyCastError`]                                  |
 /// | all primitives    | `NonZero*`        | [`FailedCastError`](crate::errors::FailedCastError) |
+///
+/// # NaN
+/// Casting from NaN always returns Err, even when the target type can represent NaN (e.g. is also
+/// a floating point type, or even the same floating point type as the source of the cast).
 pub trait Cast {
     /// Attempts to cast this numerical type to type `T`. Depending on the calling context, it
     /// may be necessary to disambiguate the target type, as with the turbofish operator (::<>).
@@ -78,7 +83,7 @@ pub trait Cast {
     /// Returns `Err` if the cast is lossy, meaning that the numerical value (in the
     /// mathematical sense) is not preserved completely across the type cast. The error type is
     /// defined by the implementation; for implementations provided by Cove this will be
-    /// [`LossyCastError`](crate::errors::LossyCastError) or
+    /// [`LossyCastError`] or
     /// [`FailedCastError`](crate::errors::FailedCastError).
     ///
     /// # Performance
@@ -86,8 +91,8 @@ pub trait Cast {
     /// to [`TryFrom::try_from`] / [`TryInto::try_into`]. Note that performance may actually improve
     /// when follow-on extension traits are applied to the returned [`Result`].
     #[inline]
-    fn cast<T>(self) -> Result<T, Self::Error> where Self: Sized + CastTo<T> {
-        self.cast_to()
+    fn cast<T>(self) -> Result<T, Self::Error> where Self: Sized + CastImpl<T> {
+        self.cast_impl()
     }
 }
 
@@ -216,9 +221,8 @@ pub trait Lossless<T> {
 ///
 /// # Support
 /// Cove provides support for [`Lossy`] whenever [`Cast::cast`] returns a [`Result`] based on
-/// [`LossyCastError`](crate::errors::LossyCastError). In practice this means [`Lossy`] is supported
-/// for all cove-provided casts except from a primitive to one of the `NonZero*` family defined in
-/// [`core::num`].
+/// [`LossyCastError`]. In practice this means [`Lossy`] is supported for all cove-provided casts 
+/// except from a primitive to one of the `NonZero*` family defined in [`core::num`].
 pub trait Lossy<T> {
     /// Called on a [`Result`] returned from [`Cast::cast`] to accept the result of the cast, even
     /// if it was lossy. This is essentially a convenience wrapper around unwrapping in the success
@@ -279,8 +283,9 @@ pub trait Lossy<T> {
 /// | Origin Types      | Target Types          | Guarantee                                     |
 /// | ---               | ---                   | ---                                           |
 /// | float             | int                   | rounded with `.5` rounding away from 0        |
-/// | float             | unsigned `NonZero*`   | float → int, then ±0.0 → 1                     |
+/// | float             | unsigned `NonZero*`   | float → int, then ±0.0 → 1                    |
 /// | float             | signed `NonZero*`     | float → int, then -0.0 → -1 and +0.0 → 1      |
+/// | float: NaN        | float                 | target will also be NaN                       |
 /// | int or `NonZero*` | float                 | rounded according to `roundTiesToEven` mode*  |
 /// | int               | `NonZero*`            | 0 → 1                                         |
 ///
@@ -349,9 +354,9 @@ pub trait Closest<T> {
 ///
 /// # Support
 /// Cove provides support for [`AssumedLossless`] whenever [`Cast::cast`] returns a [`Result`] based
-/// on [`LossyCastError`](crate::errors::LossyCastError). In practice this means [`AssumedLossless`]
-/// is supported for all cove-provided casts except from a primitive to one of the `NonZero*` family
-/// defined in [`core::num`].
+/// on [`LossyCastError`]. In practice this means [`AssumedLossless`] is supported for all 
+/// cove-provided casts except from a primitive to one of the `NonZero*` family defined in 
+/// [`core::num`].
 pub trait AssumedLossless<T> {
     /// Called on a [`Result`] returned from [`Cast::cast`] to accept the result of the cast
     /// under the assumption that it was lossless. This will panic in dev builds if the cast was
@@ -389,3 +394,50 @@ pub trait AssumedLossless<T> {
     /// keyword and thus is zero-overhead.
     fn assumed_lossless(self) -> T;
 }
+
+/// Provides a convenience subtrait for use with bounding generic function parameters 
+/// 
+/// This is generally easier to use than manually detailing the necessary traits and associated 
+/// types. This subtrait is not included in the prelude because it supports a less-common use case 
+/// than Cove's core functionality.
+///
+/// # Support
+/// [`CastTo`] is supported as a blanket implementation for all casts which can yield a 
+/// [`LossyCastError`] -- in practice this usually means casts to primitive types. This is the 
+/// most common use case; if it does not match your use case you will not be able to use [`CastTo`], 
+/// but may still bound generic parameters with Cove traits through more verbose methods.
+/// 
+/// # Examples
+/// ```
+/// use cove::prelude::*;
+/// use cove::casts::CastTo;
+/// 
+/// // An artificial example function using CastTo as a bounds to compare disparate types
+/// fn lossy_are_equal(lhs: impl CastTo<u32>, rhs: impl CastTo<u32>) -> bool {
+///     lhs.cast().lossy() == rhs.cast().lossy()
+/// }
+///
+/// assert!(lossy_are_equal(10.3f32, 10u64));
+/// assert!(!lossy_are_equal(-200i16, -202i32));
+/// ```
+/// 
+/// This next example shows a more verbose version, to account for those cases which cannot use 
+/// [`CastTo`]:
+/// ```
+/// use cove::prelude::*;
+/// use cove::base::CastImpl;
+/// use cove::errors::FailedCastError;
+/// use core::num::NonZeroI8;
+/// 
+/// // An artificial example function which finds the closest NonZeroI8 to the input and checks
+/// // whether its value is 8.
+/// fn closest_is_8<
+///     T: Cast + CastImpl<NonZeroI8, Error = FailedCastError<T, NonZeroI8>>
+/// >(x: T) -> bool {
+///     x.cast().closest() == NonZeroI8::new(8).unwrap()
+/// }
+/// 
+/// assert!(closest_is_8(8.1f64));
+/// assert!(!closest_is_8(70u32));
+/// ```
+pub trait CastTo<T> : Cast + CastImpl<T, Error = LossyCastError<Self, T>> + Sized {}

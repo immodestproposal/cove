@@ -1,4 +1,4 @@
-//! Provides extension traits to help make numerical casts safer and more explicit.
+//! Provides extension traits to help make numerical casts safer and more explicit
 //!
 //! See the [`crate documentation`](crate) for an overview, or jump right in with the [`Cast`]
 //! trait.
@@ -394,50 +394,3 @@ pub trait AssumedLossless<T> {
     /// keyword and thus is zero-overhead.
     fn assumed_lossless(self) -> T;
 }
-
-/// Provides a convenience subtrait for use with bounding generic function parameters 
-/// 
-/// This is generally easier to use than manually detailing the necessary traits and associated 
-/// types. This subtrait is not included in the prelude because it supports a less-common use case 
-/// than Cove's core functionality.
-///
-/// # Support
-/// [`CastTo`] is supported as a blanket implementation for all casts which can yield a 
-/// [`LossyCastError`] -- in practice this usually means casts to primitive types. This is the 
-/// most common use case; if it does not match your use case you will not be able to use [`CastTo`], 
-/// but may still bound generic parameters with Cove traits through more verbose methods.
-/// 
-/// # Examples
-/// ```
-/// use cove::prelude::*;
-/// use cove::casts::CastTo;
-/// 
-/// // An artificial example function using CastTo as a bounds to compare disparate types
-/// fn lossy_are_equal(lhs: impl CastTo<u32>, rhs: impl CastTo<u32>) -> bool {
-///     lhs.cast().lossy() == rhs.cast().lossy()
-/// }
-///
-/// assert!(lossy_are_equal(10.3f32, 10u64));
-/// assert!(!lossy_are_equal(-200i16, -202i32));
-/// ```
-/// 
-/// This next example shows a more verbose version, to account for those cases which cannot use 
-/// [`CastTo`]:
-/// ```
-/// use cove::prelude::*;
-/// use cove::base::CastImpl;
-/// use cove::errors::FailedCastError;
-/// use core::num::NonZeroI8;
-/// 
-/// // An artificial example function which finds the closest NonZeroI8 to the input and checks
-/// // whether its value is 8.
-/// fn closest_is_8<
-///     T: Cast + CastImpl<NonZeroI8, Error = FailedCastError<T, NonZeroI8>>
-/// >(x: T) -> bool {
-///     x.cast().closest() == NonZeroI8::new(8).unwrap()
-/// }
-/// 
-/// assert!(closest_is_8(8.1f64));
-/// assert!(!closest_is_8(70u32));
-/// ```
-pub trait CastTo<T> : Cast + CastImpl<T, Error = LossyCastError<Self, T>> + Sized {}

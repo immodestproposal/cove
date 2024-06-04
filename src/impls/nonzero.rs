@@ -209,7 +209,7 @@ macro_rules! cast {
     };
 
     (lossless $from:ty => $($to:ty),+) => {
-        $(impl LosslessCast for Result<$to, LossyCastError<$from, $to>> {})*
+        $(impl LosslessCast for LossyCastError<$from, $to> {})*
     };
 
     (lossless $first:ty, $($from:ty),+ => $to:ty) => {

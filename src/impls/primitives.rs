@@ -195,7 +195,7 @@ macro_rules! cast {
     };
 
     (lossless $from:ty => $($to:ty),+) => {
-        $(impl LosslessCast for Result<$to, LossyCastError<$from, $to>> {})*
+        $(impl LosslessCast for LossyCastError<$from, $to> {})*
     };
 
     (lossless $first:ty, $($from:ty),+ => $to:ty) => {
@@ -341,10 +341,10 @@ impl CastImpl<f64> for f32 {
     }    
 }
 
-impl Closest<f64> for f32 {
+impl Closest<f64> for LossyCastError<f32, f64> {
     #[inline]
     fn closest(self) -> f64 {
-        self.into()
+        self.to
     }
 }
 
@@ -371,10 +371,10 @@ impl CastImpl<f32> for f64 {
     }
 }
 
-impl Closest<f32> for f64 {
+impl Closest<f32> for LossyCastError<f64, f32> {
     #[inline]
     #[allow(clippy::cast_possible_truncation)]
     fn closest(self) -> f32 {
-        self as f32
+        self.to
     }
 }

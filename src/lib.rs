@@ -293,6 +293,7 @@
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
 // TODO: tests (both std and no_std): also cross-compiled for pointer widths
+// TODO: do we still need both Lossless and LosslessCast?
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
 // TODO:    * re-read all docs for correctness
@@ -304,6 +305,7 @@
 mod impls;
 
 pub mod base;
+pub mod bounds;
 pub mod casts;
 pub mod errors;
 pub mod prelude;

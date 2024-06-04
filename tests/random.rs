@@ -1,6 +1,6 @@
 mod util;
 
-use cove::casts::CastTo;
+use cove::bounds::CastTo;
 use cove::prelude::*;
 use core::fmt::{Display, Write};
 use util::FixedString;

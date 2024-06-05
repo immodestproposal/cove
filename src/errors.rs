@@ -6,6 +6,28 @@
 use core::fmt::{Debug, Display, Formatter};
 use core::marker::PhantomData;
 
+/// Indicates that a cast between numeric types could not possibly have lost data, deduced from 
+/// the types alone.
+/// 
+/// This is used for cove's casts which cannot lose data on the target platform, even if they 
+/// could on a different platform (at which point the cast would fail to compile). This error is 
+/// similar to [`Infallible`](core::convert::Infallible) in that it cannot be instantiated and 
+/// serves instead as a marker which carries the source and target type information.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct LosslessCastError<CastFrom, CastTo>(PhantomData<(CastFrom, CastTo)>);
+
+impl<CastFrom: Display, CastTo> Display for LosslessCastError<CastFrom, CastTo> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
+        // This is safe because LosslessCastError cannot be instantiated; it is really just a holder
+        // of type information.
+        unsafe {core::hint::unreachable_unchecked()}
+    }
+}
+
+#[cfg(feature = "std")]
+impl<CastFrom: Debug + Display, CastTo: Debug>
+std::error::Error for LosslessCastError<CastFrom, CastTo> {}
+
 // -- LossyCastError -- //
 
 /// Indicates that a cast between numeric types lost data.

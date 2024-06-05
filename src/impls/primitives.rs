@@ -3,9 +3,8 @@
 #![allow(clippy::wildcard_imports)]
 
 use crate::casts::{Cast, Closest};
-use crate::errors::LossyCastError;
+use crate::errors::{LosslessCastError, LossyCastError};
 use crate::base::CastImpl;
-use super::LosslessCast;
 
 macro_rules! cast {
     ($($num:ty),+) => {
@@ -42,6 +41,11 @@ macro_rules! cast {
                 }
             }
         )*
+    };
+    
+    (integer $first:ty, $($from:ty),+ => $to:ty) => {
+        cast!(integer $first => $to);
+        $(cast!(integer $from => $to));*;
     };
 
     (int_to_float $from:ty => $($to:ty),+) => {
@@ -162,32 +166,6 @@ macro_rules! cast {
         )*
     };
 
-    (float_to_self $($float:ty),+) => {
-        $(
-            impl CastImpl<$float> for $float {
-                type Error = LossyCastError<Self, Self>;
-
-                #[inline]
-                fn cast_impl(self) -> Result<Self, Self::Error> {
-                    match self.is_nan() {
-                        false => Ok(self),
-                        true => Err(LossyCastError {
-                            from: self,
-                            to: self
-                        })
-                    }
-                }
-            }
-
-            impl Closest<$float> for LossyCastError<$float, $float> {
-                #[inline]
-                fn closest(self) -> $float {
-                    self.from
-                }
-            }
-        )*
-    };
-
     (int_to_float $first:ty, $($from:ty),+ => $to:ty) => {
         cast!(int_to_float $first => $to);
         $(cast!(int_to_float $from => $to));*;
@@ -199,7 +177,16 @@ macro_rules! cast {
     };
 
     (lossless $from:ty => $($to:ty),+) => {
-        $(impl LosslessCast for LossyCastError<$from, $to> {})*
+        $(
+            impl CastImpl<$to> for $from {
+                type Error = LosslessCastError<Self, $to>;
+
+                #[inline]
+                fn cast_impl(self) -> Result<$to, Self::Error> {
+                    Ok(self as $to)
+                }
+            }
+        )*
     };
 
     (lossless $first:ty, $($from:ty),+ => $to:ty) => {
@@ -211,22 +198,38 @@ macro_rules! cast {
 // -- Macro-Generated Bulk Implementations: Portable -- //
 cast!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
 
-cast!(integer u8 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
-cast!(integer u16 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
-cast!(integer u32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f64);
-cast!(integer u64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
-cast!(integer u128 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
-cast!(integer usize => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+cast!(lossless u8 => u8, u16, u32, u64, u128, i16, i32, i64, i128, f32, f64);
+cast!(integer u8 => i8);
 
-cast!(integer i8 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
-cast!(integer i16 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f32, f64);
-cast!(integer i32 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize, f64);
-cast!(integer i64 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
-cast!(integer i128 => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
-cast!(integer isize => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+cast!(lossless u16 => u16, u32, u64, u128, i32, i64, i128, f32, f64);
+cast!(integer u16 => u8, i8, i16);
 
-cast!(int_to_float u32, u64, u128, usize, i32, i64, i128, isize => f32);
-cast!(int_to_float u64, u128, usize, i64, i128, isize => f64);
+cast!(lossless u32 => u32, u64, u128, i64, i128, f64);
+cast!(integer u32 => u8, u16, i8, i16, i32);
+
+cast!(lossless u64 => u64, u128, i128);
+cast!(integer u64 => u8, u16, u32, i8, i16, i32, i64);
+
+cast!(lossless u128 => u128);
+cast!(integer u128 => u8, u16, u32, u64, i8, i16, i32, i64, i128);
+
+cast!(lossless i8 => i8, i16, i32, i64, i128, f32, f64);
+cast!(integer i8 => u8, u16, u32, u64, u128);
+
+cast!(lossless i16 => i16, i32, i64, i128, f32, f64);
+cast!(integer i16 => u8, u16, u32, u64, u128, i8);
+
+cast!(lossless i32 => i32, i64, i128, f64);
+cast!(integer i32 => u8, u16, u32, u64, u128, i8, i16);
+
+cast!(lossless i64 => i64, i128);
+cast!(integer i64 => u8, u16, u32, u64, u128, i8, i16, i32);
+
+cast!(lossless i128 => i128);
+cast!(integer i128 => u8, u16, u32, u64, u128, i8, i16, i32, i64);
+
+cast!(int_to_float u32, u64, u128, i32, i64, i128 => f32);
+cast!(int_to_float u64, u128, i64, i128 => f64);
 
 // Supply precomputed max values for each integer type
 cast!(
@@ -258,35 +261,32 @@ cast!(
     (i128, 170_141_183_460_469_212_842_221_372_237_303_250_944_f64)
 );
 
-cast!(float_to_self f32, f64);
-
-cast!(lossless u8 => u8, u16, u32, u64, u128, i16, i32, i64, i128, f32, f64);
-cast!(lossless u16 => u16, u32, u64, u128, i32, i64, i128, f32, f64);
-cast!(lossless u32 => u32, u64, u128, i64, i128, f64);
-cast!(lossless u64 => u64, u128, i128);
-cast!(lossless u128 => u128);
-cast!(lossless usize => usize);
-
-cast!(lossless i8 => i8, i16, i32, i64, i128, f32, f64);
-cast!(lossless i16 => i16, i32, i64, i128, f32, f64);
-cast!(lossless i32 => i32, i64, i128, f64);
-cast!(lossless i64 => i64, i128);
-cast!(lossless i128 => i128);
-cast!(lossless isize => isize);
-
 cast!(lossless f32 => f32, f64);
 cast!(lossless f64 => f64);
+// Note: f64 -> f32 is implemented manually later in this module
+
+cast!(lossless usize => usize);
+cast!(integer usize => isize);
+
+cast!(lossless isize => isize);
+cast!(integer isize => usize);
 
 // -- Macro-Generated Bulk Implementations: Non-Portable -- //
 #[cfg(target_pointer_width = "16")]
 mod platform_dependent {
     use super::*;
-
+    
     cast!(lossless usize => u16, u32, u64, u128, i32, i64, i128, f32, f64);
+    cast!(integer usize => u8, i8, i16);
+    
     cast!(lossless isize => i16, i32, i64, i128, f32, f64);
+    cast!(integer isize => u8, u16, u32, u64, u128, i8);
 
     cast!(lossless u8, u16 => usize);
+    cast!(integer u32, u64, u128, i8, i16, i32, i64, i128 => usize);
+    
     cast!(lossless u8, i8, i16 => isize);
+    cast!(integer u16, u32, u64, u128, i32, i64, i128 => isize);
 
     cast!(float_to_int f32 as u32 => (usize, 65_535_f32));
     cast!(float_to_int f32 as u32 => (isize, 32_767_f32));
@@ -300,10 +300,18 @@ mod platform_dependent {
     use super::*;
 
     cast!(lossless usize => u32, u64, u128, i64, i128, f64);
+    cast!(integer usize => u8, u16, i8, i16, i32);
+    
     cast!(lossless isize => i32, i64, i128, f64);
+    cast!(integer isize => u8, u16, u32, u64, u128, i8, i16);
 
     cast!(lossless u8, u16, u32 => usize);
+    cast!(integer u64, u128, i8, i16, i32, i64, i128 => usize);
+    
     cast!(lossless u8, u16, i8, i16, i32 => isize);
+    cast!(integer u32, u64, u128, i64, i128 => isize);
+    
+    cast!(int_to_float usize, isize => f32);
 
     cast!(float_to_int f32 as u32 => (usize, 4_294_967_040_f32));
     cast!(float_to_int f32 as u32 => (isize, 2_147_483_520_f32));
@@ -317,10 +325,19 @@ mod platform_dependent {
     use super::*;
 
     cast!(lossless usize => u64, u128, i128);
+    cast!(integer usize => u8, u16, u32, i8, i16, i32, i64);
+    
     cast!(lossless isize => i64, i128);
-
+    cast!(integer isize => u8, u16, u32, u64, u128, i8, i16, i32);
+    
     cast!(lossless u8, u16, u32, u64 => usize);
+    cast!(integer u128, i8, i16, i32, i64, i128 => usize);
+    
     cast!(lossless u8, u16, u32, i8, i16, i32, i64 => isize);
+    cast!(integer u64, u128, i128 => isize);
+
+    cast!(int_to_float usize, isize => f32);
+    cast!(int_to_float usize, isize => f64);
 
     cast!(float_to_int f32 as u32 => (usize, 18_446_742_974_197_923_840_f32));
     cast!(float_to_int f32 as u32 => (isize, 9_223_371_487_098_961_920_f32));
@@ -330,28 +347,6 @@ mod platform_dependent {
 }
 
 // -- Manual Implementations -- //
-impl CastImpl<f64> for f32 {
-    type Error = LossyCastError<Self, f64>;
-    
-    #[inline]
-    fn cast_impl(self) -> Result<f64, Self::Error> {
-        match self.is_nan() {
-            false => Ok(f64::from(self)),
-            true => Err(LossyCastError {
-                from: self,
-                to: f64::from(self)
-            })
-        }
-    }    
-}
-
-impl Closest<f64> for LossyCastError<f32, f64> {
-    #[inline]
-    fn closest(self) -> f64 {
-        self.to
-    }
-}
-
 impl CastImpl<f32> for f64 {
     type Error = LossyCastError<Self, f32>;
 
@@ -362,11 +357,12 @@ impl CastImpl<f32> for f64 {
         let value = self as f32;
         
         // Cast back and compare; this works since f32 -> f64 is lossless and the default behaviors
-        // of equality testing are what we want, despite usually being inadvisable for floats. This
-        // test handles the NaN case naturally.
+        // of equality testing are what we want, despite usually being inadvisable for floats. We
+        // also need to handle the NaN case here explicitly.
         #[allow(clippy::float_cmp)]
         match f64::from(value) == self {
             true => Ok(value),
+            false if self.is_nan() => Ok(value),
             false => Err(LossyCastError {
                 from: self,
                 to: value

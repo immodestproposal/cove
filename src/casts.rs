@@ -25,8 +25,11 @@ use crate::errors::LossyCastError;
 /// | all primitives    | `NonZero*`        | [`FailedCastError`](crate::errors::FailedCastError) |
 ///
 /// # NaN
-/// Casting from NaN always returns Err, even when the target type can represent NaN (e.g. is also
-/// a floating point type, or even the same floating point type as the source of the cast).
+/// Casting from NaN to a floating point type which can represent NaN is considered lossless 
+/// even though the target value does not equal the source value; consequently, it will 
+/// return Ok(()). An implication of this is that the possibility of NaN will not by itself 
+/// disqualify implementation of [`Lossless`] on a cast; this means that e.g. f32 -> f32 can be 
+/// considered [`Lossless`].
 pub trait Cast {
     /// Attempts to cast this numerical type to type `T`. Depending on the calling context, it
     /// may be necessary to disambiguate the target type, as with the turbofish operator (::<>).

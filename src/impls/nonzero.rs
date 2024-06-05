@@ -3,9 +3,8 @@
 #![allow(clippy::wildcard_imports)]
 
 use crate::casts::{Cast, Closest};
-use crate::errors::{FailedCastError, LossyCastError};
+use crate::errors::{FailedCastError, LosslessCastError, LossyCastError};
 use crate::base::CastImpl;
-use super::LosslessCast;
 
 use core::num::{
     NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,

@@ -79,7 +79,8 @@
 //!
 //! // If Closest or Lossless is desired it may be necessary to use a different error type;
 //! // otherwise it will be difficult to implement those extension traits due to Rust's orphaning
-//! // rules.
+//! // rules. To leverage Cove's blanket implementations, be sure to implement the follow-on 
+//! // extension traits on the error type.
 //! ```
 
 /// Provides the base trait for [`Cast`](crate::casts::Cast); implement this to extend

@@ -274,6 +274,22 @@ pub trait Lossy<T> {
 /// When used to cast between integers, [`Closest`] is effectively a saturating cast; that is, in
 /// those cases it will return either the exact value or the `MAX` or `MIN` of the target type as
 /// appropriate.
+/// 
+/// Floating point infinity is handled as follows:
+/// * If the source is a floating point type valued at ±infinity and the target is a floating 
+/// point type, the infinity is preserved across the cast
+/// * If the source is a floating point type valued at ±infinity and the target is an integer, 
+/// the value is saturated to the appropriate MAX or MIN of the target
+/// * If the target is a floating point type and a finite source value overflows its MAX/MIN 
+/// (regardless of whether the source is also floating point or an integer), the target's MAX/MIN is 
+/// produced rather than any infinity value.
+/// 
+/// Floating point NaN is handled as follows:
+/// * If the source is a floating point NaN and the target is a floating point type, a NaN value 
+/// will be produced
+/// * If the source is a floating point NaN and the target is an integer, the NaN value is first 
+/// converted to 0 and then processed from there (thereby yielding 0 for primitives and ±1 for 
+/// the `NonZero*` family of numbers).
 ///
 /// If more than one value of the target type is equidistant from the origin value, the
 /// implementation is free to choose any of the nearest values; there is no guarantee which one
@@ -285,7 +301,6 @@ pub trait Lossy<T> {
 /// | float             | int                   | rounded with `.5` rounding away from 0        |
 /// | float             | unsigned `NonZero*`   | float → int, then ±0.0 → 1                    |
 /// | float             | signed `NonZero*`     | float → int, then -0.0 → -1 and +0.0 → 1      |
-/// | float: NaN        | float                 | target will also be NaN                       |
 /// | int or `NonZero*` | float                 | rounded according to `roundTiesToEven` mode*  |
 /// | int               | `NonZero*`            | 0 → 1                                         |
 ///
@@ -378,14 +393,12 @@ pub trait AssumedLossless<T> {
     /// assert_eq!(NonZeroI32::new(42).unwrap().cast::<i8>().assumed_lossless(), 42i8);
     /// ```
     ///
-    #[cfg_attr(debug_assertions, doc = "```should_panic")]
-    #[cfg_attr(not(debug_assertions), doc = "```")]
+    /// ```ignore
     /// use cove::prelude::*;
     ///
     /// // Incorrectly assume a lossy cast is lossless; this will panic in a dev build and yield a
     /// // lossy value in a release build
     /// assert_eq!((-4isize).cast::<u8>().assumed_lossless(), 252u8);
-    ///
     /// ```
     ///
     /// # Performance

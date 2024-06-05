@@ -17,13 +17,9 @@
 //! assert_eq!(foo(38i128), 38f32);
 //! ```
 //! 
-//! This is verbose and awkward, and requires an undesirable level of familiarity with Cove's 
-//! implementation. This module aims to alleviate this issue by providing convenience traits
-//! designed for bounding generic types. This is not expected to be a common use case, and thus
-//! these traits are not included in Cove's prelude.
-//! 
-//! By way of illustration, compare the above example with this one, rewritten to use the bounding 
-//! trait [`CastTo`]:
+//! The function signature is verbose and awkward, and requires an undesirable level of familiarity 
+//! with Cove's implementation. Now compare the above example with this one, rewritten to use the 
+//! bounding trait [`CastTo`]:
 //! ```
 //! use cove::bounds::CastTo;
 //! use cove::prelude::*;
@@ -34,25 +30,66 @@
 //!
 //! assert_eq!(foo(38i128), 38f32);
 //! ``` 
+//! 
+//! That syntactic cleanup is the goal of this module. Note that using bounding traits is not 
+//! expected to be a common use case and thus these traits are not included in Cove's prelude.
+//! 
+//! # Support
+//! The different bounding trait cover different use cases and supported types, according to the 
+//! tables. Note that the supported types are those provided out-of-the-box by Cove, but external 
+//! types may also be supported (see [`CastImpl`] for details on extending Cove support).
+//! 
+//! Target types supported by each bounding trait:
+//! 
+//! | Trait                 | Supported Target Types        | 
+//! | ---                   | ---                           |
+//! | [`CastTo`]            | all primitives                |
+//! | [`CastToClosest`]     | all primitives + `NonZero*`   |
+//! | [`CastToLossless`]    | all primitives + `NonZero*` where guaranteed lossless by types alone |  
+//! 
+//! Casting traits supported by each bounding trait:
+//!   
+//! | Trait              | [`Cast`] | [`AssumedLossless`] | [`Closest`] | [`Lossy`] | [`Lossless`] | 
+//! | ---                | ---      | ---                 | ---         | ---       | ---          |
+//! | [`CastTo`]         | ✔       | ✔                   | ✔          | ✔         |              | 
+//! | [`CastToClosest`]  | ✔       |                     | ✔           |           |              |
+//! | [`CastToLossless`] | ✔       |                     |             |           | ✔            |
 
 use crate::base::CastImpl;
-use crate::casts::{AssumedLossless, Cast, Closest, Lossy};
+use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
 
 /// Provides a convenience subtrait for use with bounding generic function parameters
-///
-/// # Support
-/// [`CastTo`] is supported as a blanket implementation for all casts which can yield an error 
-/// type which implements [`Copy`](core::marker::Copy), [`AssumedLossless`], [`Closest`], and 
-/// [`Lossy`]. In practice this means casts to primitive types, and is expected to be the most
-/// common bounding trait.
+/// 
+/// This is the "go-to" bounding trait since it covers the most common use cases. If this does 
+/// not cover your use case, consider one of the other bounding traits:
+/// 
+/// * [`CastToClosest`]: only supports [`Cast`] and [`Closest`] casting traits, but covers the 
+/// `NonZero*` family of numbers in addition to the primitives
+/// * [`CastToLossless`]: only supports a subset of source and target types, but guarantees 
+/// a lossless cast at compilation time via the [`Lossless`] trait
 ///
 /// # Examples
-/// Using [`Lossy`]:
+///
+/// Using [`Cast`] without a follow-on:
 /// ```
 /// use cove::prelude::*;
 /// use cove::bounds::CastTo;
 ///
-/// // An artificial example function using CastTo as a bounds to compare disparate types
+/// fn is_cast_lossless(x: impl CastTo<u8>) -> bool {
+///     x.cast().is_ok()
+/// }
+///
+/// assert!(is_cast_lossless(7i8));
+/// assert!(!is_cast_lossless(300u16));
+/// ```
+///
+/// Using [`Lossy`]:
+///
+/// ```
+/// use cove::prelude::*;
+/// use cove::bounds::CastTo;
+///
+/// /// Returns true if `lhs` and `rhs` are equal after being lossily casted to u32, false otherwise
 /// fn lossy_are_equal(lhs: impl CastTo<u32>, rhs: impl CastTo<u32>) -> bool {
 ///     lhs.cast().lossy() == rhs.cast().lossy()
 /// }
@@ -60,15 +97,37 @@ use crate::casts::{AssumedLossless, Cast, Closest, Lossy};
 /// assert!(lossy_are_equal(10.3f32, 10u64));
 /// assert!(!lossy_are_equal(-200i16, -202i32));
 /// ```
+///
+/// Using [`AssumedLossless`]:
+///
 /// ```
 /// use cove::prelude::*;
 /// use cove::bounds::CastTo;
-/// 
+///
+/// /// Casts `x` to i128; if this is lossy, it will panic in a debug build (and just be silently
+/// /// lossy in a release build)
 /// fn foo(x: impl CastTo<i128>) -> i128 {
 ///     x.cast().assumed_lossless()
 /// }
 /// 
 /// assert_eq!(foo(9800), 9800i128);
+/// ```
+///
+/// Using [`Closest`]:
+///
+/// ```
+/// use cove::prelude::*;
+/// use cove::bounds::CastTo;
+/// 
+/// /// Casts `x` to a u16, yielding the closest possible value
+/// fn close_enough(x: impl CastTo<u16>) -> u16 {
+///     x.cast().closest()
+/// }
+/// 
+/// assert_eq!(close_enough(99u8), 99u16);
+/// assert_eq!(close_enough(-5i8), 0u16);
+/// assert_eq!(close_enough(4.5f32), 5u16);
+/// assert_eq!(close_enough(u32::MAX), u16::MAX);
 /// ```
 pub trait CastTo<T> : Cast + CastImpl<T, Error = <Self as CastTo<T>>::_Error> {
     /// This associated type is intended for internal use only; it is part of a workaround for Rust
@@ -77,44 +136,50 @@ pub trait CastTo<T> : Cast + CastImpl<T, Error = <Self as CastTo<T>>::_Error> {
     type _Error: Copy + AssumedLossless<T> + Closest<T> + Lossy<T>;
 }
 
+/// Provides a convenience subtrait for use with bounding generic function parameters
 ///
+/// This bounding trait can handle casts to the `NonZero*` family of numbers (in addition to the 
+/// primitives) but supports only the [`Cast`] and [`Closest`] casting traits. Unless you need 
+/// support for a `NonZero*` target type, consider using [`CastTo`] or [`CastToLossless`] instead.
 ///
-/// This next example shows a more verbose version, to account for those cases which cannot use 
-/// [`CastTo`]:
+/// # Examples
+///
+/// Using [`Cast`] without a follow-on:
 /// ```
 /// use cove::prelude::*;
-/// use cove::base::CastImpl;
-/// use cove::bounds::CastTo;
-/// use cove::errors::FailedCastError;
-/// use core::num::NonZeroI8;
+/// use cove::bounds::CastToClosest;
 ///
-/// // An artificial example function which finds the closest NonZeroI8 to the input and checks
-/// // whether its value is 8.
-/// fn closest_is_8_verbose<
-///     T: Cast + CastImpl<NonZeroI8, Error = FailedCastError<T, NonZeroI8>>
-/// >
-/// (x: T) -> bool where FailedCastError<T, NonZeroI8> : Closest<NonZeroI8> {
-///     x.cast().closest() == NonZeroI8::new(8).unwrap()
+/// fn is_cast_lossless(x: impl CastToClosest<i64>) -> bool {
+///     x.cast().is_ok()
 /// }
 ///
-/// assert!(closest_is_8_verbose(8.1f64));
-/// assert!(!closest_is_8_verbose(70u32));
+/// assert!(is_cast_lossless(-100i128));
+/// assert!(!is_cast_lossless(98.2f64));
+/// ```
 ///
-/// // Compare the above to this version using CastTo; the NonZeroI8 has been swapped for an i8,
-/// // since NonZeroI8 if not a primitive and does not support CastTo.
+/// Using [`Closest`]:
 ///
-/// fn closest_is_8_succint(x: impl CastTo<i8>) -> bool {
-///     x.cast().closest() == 8i8
+/// ```
+/// use cove::prelude::*;
+/// use cove::bounds::CastToClosest;
+///
+/// /// Casts `x` to a u16, yielding the closest possible value
+/// fn close_enough(x: impl CastToClosest<f32>) -> f32 {
+///     x.cast().closest()
 /// }
 ///
-/// assert!(closest_is_8_succint(8.1f64));
-/// assert!(!closest_is_8_succint(70u32));
+/// assert_eq!(close_enough(88u8), 88f32);
+/// assert_eq!(close_enough(-1024i16), -1024f32);
+/// assert_eq!(close_enough(f64::MAX), f32::MAX);
+/// assert_eq!(close_enough(f64::NEG_INFINITY), f32::NEG_INFINITY);
+/// assert_eq!(close_enough(u32::MAX), u32::MAX as f32);
+/// assert_eq!(close_enough(u128::MAX), f32::MAX);
 /// ```
 pub trait CastToClosest<T> : Cast + CastImpl<T, Error = <Self as CastToClosest<T>>::_Error> {
+    /// This associated type is intended for internal use only; it is part of a workaround for Rust
+    /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
+    /// subtraits. Both are open issues, hence the workaround.
     type _Error: Copy + Closest<T>;
 }
 
-impl<TO, ERROR: Copy + Closest<TO>, FROM: Cast + CastImpl<TO, Error = ERROR>> CastToClosest<TO> for
-FROM {
-    type _Error = ERROR;
-}
+//pub trait CastToLossless<T>: Cast + CastImpl<T, Error = <Self >

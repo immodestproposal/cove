@@ -70,8 +70,12 @@ macro_rules! cast {
             impl Closest<$to> for LossyCastError<$from, $to> {
                 #[inline]
                 fn closest(self) -> $to {
-                    // For int-to-float the raw cast is the closest
-                    self.to
+                    // For int-to-float the raw cast is the closest except in the case of overflow
+                    match self.to {
+                        <$to>::INFINITY => <$to>::MAX,
+                        <$to>::NEG_INFINITY => <$to>::MIN,
+                        _ => self.to
+                    }
                 }
             }
         )*
@@ -375,6 +379,11 @@ impl Closest<f32> for LossyCastError<f64, f32> {
     #[inline]
     #[allow(clippy::cast_possible_truncation)]
     fn closest(self) -> f32 {
-        self.to
+        // Handle the specific cases of finite overflow turning into infinity
+        match self.to {
+            f32::INFINITY if self.from != f64::INFINITY => f32::MAX,
+            f32::NEG_INFINITY if self.from != f64::NEG_INFINITY => f32::MIN,
+            _ => self.to
+        }
     }
 }

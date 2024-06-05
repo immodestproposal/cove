@@ -1,6 +1,6 @@
 //! This module provides blanket implementations of certain casting traits where applicable
 
-use crate::bounds::CastTo;
+use crate::bounds::{CastTo, CastToClosest};
 use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
 use crate::errors::LossyCastError;
 use super::LosslessCast;
@@ -16,8 +16,8 @@ for LossyCastError<CastFrom, CastTo> {
         debug_assert!(
             false,
             "Lossy cast was assumed to be lossless [{:?} ({}) -> {:?} ({})]",
-            self.from, stringify!(CastFrom),
-            self.to, stringify!(CastImpl)
+            self.from, core::any::type_name::<CastFrom>(),
+            self.to, core::any::type_name::<CastTo>()
         );
 
         // Use the lossy value
@@ -78,5 +78,14 @@ impl<
     ERROR: Copy + AssumedLossless<TO> + Closest<TO> + Lossy<TO>,
     FROM: Cast + CastImpl<TO, Error = ERROR>
 > CastTo<TO> for FROM {
+    type _Error = ERROR;
+}
+
+// Blanket implementation for the CastToClosest subtrait
+impl<
+    TO, 
+    ERROR: Copy + Closest<TO>, 
+    FROM: Cast + CastImpl<TO, Error = ERROR>
+> CastToClosest<TO> for FROM {
     type _Error = ERROR;
 }

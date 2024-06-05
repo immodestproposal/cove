@@ -299,6 +299,7 @@
 // TODO:    * re-read all docs for correctness
 // TODO:    * readme
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
+// TODO: make sure all errors are printing nicely (e.g. not "CastFrom" as the source type)
 // TODO: fill out cargo.toml more (badges, keywords, etc)
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 

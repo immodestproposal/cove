@@ -133,6 +133,7 @@ pub trait CastTo<T> : Cast + CastImpl<T, Error = <Self as CastTo<T>>::_Error> {
     /// This associated type is intended for internal use only; it is part of a workaround for Rust
     /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
     /// subtraits. Both are open issues, hence the workaround.
+    #[doc(hidden)]
     type _Error: Copy + AssumedLossless<T> + Closest<T> + Lossy<T>;
 }
 
@@ -179,6 +180,7 @@ pub trait CastToClosest<T> : Cast + CastImpl<T, Error = <Self as CastToClosest<T
     /// This associated type is intended for internal use only; it is part of a workaround for Rust
     /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
     /// subtraits. Both are open issues, hence the workaround.
+    #[doc(hidden)]
     type _Error: Copy + Closest<T>;
 }
 
@@ -187,7 +189,7 @@ pub trait CastToClosest<T> : Cast + CastImpl<T, Error = <Self as CastToClosest<T
 /// This bounding trait only supports casts which are guaranteed to be lossless at compilation time 
 /// as deduced from the types alone, such as i64 -> isize on a 64-bit platform or u8 -> u32 on any 
 /// platform. This is powerful when applicable but ultimately limited in scope; if your use case 
-/// does not match consider using consider using [`CastTo`] or [`CastToClosest`] instead.
+/// does not match consider using [`CastTo`] or [`CastToClosest`] instead.
 ///
 /// # Examples
 /// ```
@@ -211,5 +213,6 @@ pub trait CastToLossless<T>: Cast + CastImpl<T, Error = <Self as CastToLossless<
     /// This associated type is intended for internal use only; it is part of a workaround for Rust
     /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
     /// subtraits. Both are open issues, hence the workaround.
+    #[doc(hidden)]
     type _Error: Copy + Lossless<T>;
 }

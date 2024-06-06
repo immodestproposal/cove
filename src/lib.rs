@@ -169,36 +169,10 @@
 //!     * **NOT** zero-overhead: generally involves at least one branch over the `as` keyword
 //!
 //! ### Cast Errors
-//! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. In
-//! practice, cove provides two error types which are actually used for casts:
-//!
-//! * [`LossyCastError`](errors::LossyCastError): for lossy casts which are able to represent the
-//! lossy value as the target type
-//!     * Used in most of cove's casts
-//!     * Allows for retrieving the origin and target values via the `from` and `to` member fields:
-//!     ```
-//!     # use cove::prelude::*;
-//!     assert_eq!(260u32.cast::<u8>().unwrap_err().from, 260u32);
-//!     assert_eq!(260u32.cast::<u8>().unwrap_err().to, 4u8);
-//!     ```
-//!     * Provides a descriptive message
-//!         * e.g. `"Numerical cast was lossy [260 (u32) -> 4 (u8)]"`
-//! * [`FailedCastError`](errors::FailedCastError): for lossy casts which are unable to represent
-//!     the lossy value as the target type
-//!     * Used for certain NonZero casts, where representing e.g.
-//!         [`NonZeroUsize`](core::num::NonZeroUsize) in the error type could invoke undefined
-//!         behavior
-//!     * Allows for retrieving the origin (but not target) value via the `from` member field:
-//!     ```
-//!     # use cove::prelude::*;
-//!     # use std::num::NonZeroU8;
-//!     assert_eq!(0u32.cast::<NonZeroU8>().unwrap_err().from, 0u32);
-//!     ```
-//!     * Provides as descriptive an error message as possible
-//!         * e.g. `"Numerical cast failed [0 (u32) -> (core::num::nonzero::NonZeroU8)]"`
-//!
-//! Note that it is not necessary to interact explicitly with these error types in many cases,
-//! such as when using the follow-on extension traits; thus, they are not included in the prelude.
+//! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. See the 
+//! documentation in the [`errors`] module for details. Note that it is not necessary to interact 
+//! explicitly with these error types in many cases, such as when using the follow-on extension 
+//! traits; thus, they are not included in the prelude.
 //!
 //! ### Features
 //! Cove supports one feature, `std`, which is included in the default features. Enabling this
@@ -231,8 +205,8 @@
 //! 
 //! ### Generic Bounds
 //! As with all traits, Cove's casting traits may be used as bounds on generic parameters to a 
-//! function. Cove provides the convenience subtrait [`casts::CastTo`] to simplify this in the 
-//! most common cases; see its documentation for an example. 
+//! function. The syntax for this can be troublesome; so Cove provides convenience subtraits in the
+//! [`bounds`] module to simplify this use case. 
 //!
 //! ### Guidelines
 //! It might seem challenging to determine which type of cast to use in which circumstances.
@@ -292,16 +266,15 @@
 //! Consult the documentation on each casting trait for performance notes. Also refer to `asm.rs`
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
-// TODO: tests (both std and no_std): also cross-compiled for pointer widths
-// TODO: do we still need both Lossless and LosslessCast?
+// TODO: tests (both std and no_std): also cross-compiled for pointer widths (at least 32-bit)
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
-// TODO:    * re-read all docs for correctness
+// TODO:    * re-read all docs for correctness and completeness, especially since things were added
 // TODO:    * readme
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
 // TODO: make sure all errors are printing nicely (e.g. not "CastFrom" as the source type)
-// TODO: cross-compile tests (at least for 32-bit)
 // TODO: fill out cargo.toml more (badges, keywords, etc)
+// TODO: search for MATT and TODO and todo
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 
 mod impls;

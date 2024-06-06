@@ -4,7 +4,6 @@
 //! trait.
 
 use crate::base::CastImpl;
-use crate::errors::LossyCastError;
 
 /// Extension trait for fallibly casting between numerical types with error detection
 ///
@@ -15,15 +14,9 @@ use crate::errors::LossyCastError;
 /// [`Lossy`].
 ///
 /// # Support
-/// Cove provides support for [`Cast`] for the following numerical types; `NonZero*` refers to all
-/// the non-zero integers defined in [`core::num`].
-///
-/// | Origin Type       | Target Type       | Error Type                                          |
-/// | ---               | ---               | ---                                                 |
-/// | all primitives    | all primitives    | [`LossyCastError`]                                  |
-/// | `NonZero*`        | all primitives    | [`LossyCastError`]                                  |
-/// | all primitives    | `NonZero*`        | [`FailedCastError`](crate::errors::FailedCastError) |
-///
+/// Cove provides support for [`Cast`] between all primitive types and the `NonZero*` family of 
+/// non-zero integers defined in [`core::num`].
+/// 
 /// # NaN
 /// Casting from NaN to a floating point type which can represent NaN is considered lossless 
 /// even though the target value does not equal the source value; consequently, it will 
@@ -41,6 +34,17 @@ pub trait Cast {
     /// * [`Closest`]: for when an approximation of the value is acceptable
     /// * [`Lossless`]: for when the cast is guaranteed at compile time to be lossless
     /// * [`Lossy`]: for niche circumstances when behavior akin to `as` is desirable
+    /// 
+    /// # Errors
+    /// Returns `Err` if the cast is lossy, meaning that the numerical value (in the
+    /// mathematical sense) is not preserved completely across the type cast. The error type is
+    /// defined by the implementation; for implementations provided by Cove this will be one of 
+    /// the error types in the [`errors`](crate::errors) module.
+    ///
+    /// # Performance
+    /// In an optimized build, [`Cast::cast`] in isolation should generally have performance similar
+    /// to [`TryFrom::try_from`] / [`TryInto::try_into`]. Note that performance may actually improve
+    /// when follow-on extension traits are applied to the returned [`Result`].
     ///
     /// # Examples
     /// ```
@@ -81,18 +85,6 @@ pub trait Cast {
     /// # Some(()) }
     /// # let _ = foo();
     /// ```
-    ///
-    /// # Errors
-    /// Returns `Err` if the cast is lossy, meaning that the numerical value (in the
-    /// mathematical sense) is not preserved completely across the type cast. The error type is
-    /// defined by the implementation; for implementations provided by Cove this will be
-    /// [`LossyCastError`] or
-    /// [`FailedCastError`](crate::errors::FailedCastError).
-    ///
-    /// # Performance
-    /// In an optimized build, [`Cast::cast`] in isolation should generally have performance similar
-    /// to [`TryFrom::try_from`] / [`TryInto::try_into`]. Note that performance may actually improve
-    /// when follow-on extension traits are applied to the returned [`Result`].
     #[inline]
     fn cast<T>(self) -> Result<T, Self::Error> where Self: Sized + CastImpl<T> {
         self.cast_impl()
@@ -129,10 +121,23 @@ pub trait Cast {
 ///
 /// Note that [`Lossless`] does not support casting from primitives to the `NonZero*` family,
 /// since the origin value could be zero.
-pub trait Lossless<T> {
+/// 
+/// # Safety
+/// Lossless should only be implemented for casts which are truly lossless, or undefined behavior
+/// may result. Lossless is generally implemented on types used as errors; as a rule of thumb, such
+/// a type should not be constructible.
+/// 
+/// Note that the safety of [`Lossless`] is only a concern when implementing it, not using it -- 
+/// that is, calling [`Lossless::lossless()`] is a safe operation. Consequently, it is only an issue
+/// for those who want to extend Cove's casting support to external types.
+pub unsafe trait Lossless<T> {
     /// Unwraps a [`Result`] returned from [`Cast::cast`], extracting its `Ok` variant with no
     /// possibility of panic. Will only compile for casts for which this guarantee can be made on
     /// the target platform. May not be portable to other target platforms.
+    ///
+    /// # Performance
+    /// In an optimized build, the combination of [`Cast::cast`] and [`Lossless::lossless`]
+    /// generally compiles to the same assembly as the `as` keyword and thus is zero-overhead.
     ///
     /// # Examples
     /// ```
@@ -187,10 +192,6 @@ pub trait Lossless<T> {
     /// assert_eq!(8isize.cast::<i32>().lossless(), 8usize);
     ///
     /// ```
-    ///
-    /// # Performance
-    /// In an optimized build, the combination of [`Cast::cast`] and [`Lossless::lossless`]
-    /// generally compiles to the same assembly as the `as` keyword and thus is zero-overhead.
     fn lossless(self) -> T;
 }
 
@@ -224,14 +225,20 @@ pub trait Lossless<T> {
 ///
 /// # Support
 /// Cove provides support for [`Lossy`] whenever [`Cast::cast`] returns a [`Result`] based on
-/// [`LossyCastError`]. In practice this means [`Lossy`] is supported for all cove-provided casts 
-/// except from a primitive to one of the `NonZero*` family defined in [`core::num`].
+/// [`LosslessCastError`](crate::errors::LosslessCastError) or 
+/// [`LossyCastError`](crate::errors::LossyCastError). In practice this means [`Lossy`] is supported
+/// for all cove-provided casts except from a primitive to one of the `NonZero*` family defined in 
+/// [`core::num`].
 pub trait Lossy<T> {
     /// Called on a [`Result`] returned from [`Cast::cast`] to accept the result of the cast, even
     /// if it was lossy. This is essentially a convenience wrapper around unwrapping in the success
     /// case or extracting [`LossyCastError::to`](crate::errors::LossyCastError::to) in the fail
     /// case.
     ///
+    /// # Performance
+    /// In an optimized build, the combination of [`Cast::cast`] and [`Lossy::lossy`] generally
+    /// compiles to the same assembly as the `as` keyword and thus is zero-overhead.
+    /// 
     /// # Examples
     /// ```
     /// use cove::prelude::*;
@@ -250,10 +257,6 @@ pub trait Lossy<T> {
     /// // Also works for NonZero* to primitive, but not primitive to NonZero*
     /// assert_eq!(NonZeroI32::new(-300).unwrap().cast::<i8>().lossy(), -44i8);
     /// ```
-    ///
-    /// # Performance
-    /// In an optimized build, the combination of [`Cast::cast`] and [`Lossy::lossy`] generally
-    /// compiles to the same assembly as the `as` keyword and thus is zero-overhead.
     fn lossy(self) -> T;
 }
 
@@ -317,6 +320,11 @@ pub trait Lossy<T> {
 pub trait Closest<T> {
     /// Called on a [`Result`] returned from [`Cast::cast`] to accept the closest value
     /// expressible in the target type, even if it was lossy.
+    /// 
+    /// # Performance
+    /// [`Closest::closest`] is generally **NOT** zero-overhead compared to the `as` keyword, as
+    /// it involves at least one branch. That said, it is sufficiently lightweight that only in
+    /// very rare cases would its performance be relevant.
     ///
     /// # Examples
     /// ```
@@ -338,13 +346,8 @@ pub trait Closest<T> {
     /// // Cast to the closest NonZero value possible
     /// assert_eq!(0u8.cast::<NonZeroU16>().closest(), NonZeroU16::new(1).unwrap());
     /// assert_eq!((-0.0f64).cast::<NonZeroI32>().closest(), NonZeroI32::new(-1).unwrap());
-    /// assert_eq!((0.0f64).cast::<NonZeroI32>().closest(), NonZeroI32::new(1).unwrap());
+    /// assert_eq!(0.0f64.cast::<NonZeroI32>().closest(), NonZeroI32::new(1).unwrap());
     /// ```
-    ///
-    /// # Performance
-    /// [`Closest::closest`] is generally **NOT** zero-overhead compared to the `as` keyword, as
-    /// it involves at least one branch. That said, it is sufficiently lightweight that only in
-    /// very rare cases would its performance be relevant.
     fn closest(self) -> T;
 }
 
@@ -372,13 +375,19 @@ pub trait Closest<T> {
 ///
 /// # Support
 /// Cove provides support for [`AssumedLossless`] whenever [`Cast::cast`] returns a [`Result`] based
-/// on [`LossyCastError`]. In practice this means [`AssumedLossless`] is supported for all 
-/// cove-provided casts except from a primitive to one of the `NonZero*` family defined in 
-/// [`core::num`].
+/// on [`LosslessCastError`](crate::errors::LosslessCastError) or 
+/// [`LossyCastError`](crate::errors::LossyCastError). In practice this means [`AssumedLossless`] is 
+/// supported for all cove-provided casts except from a primitive to one of the `NonZero*` family 
+/// defined in [`core::num`].
 pub trait AssumedLossless<T> {
     /// Called on a [`Result`] returned from [`Cast::cast`] to accept the result of the cast
     /// under the assumption that it was lossless. This will panic in dev builds if the cast was
     /// actually lossy but will use the lossy value in release builds.
+    ///
+    /// # Performance
+    /// In an optimized build, the combination of [`Cast::cast`] and
+    /// [`AssumedLossless::assumed_lossless`] generally compiles to the same assembly as the `as`
+    /// keyword and thus is zero-overhead.
     ///
     /// # Examples
     /// ```
@@ -403,10 +412,5 @@ pub trait AssumedLossless<T> {
     /// // lossy value in a release build
     /// assert_eq!((-4isize).cast::<u8>().assumed_lossless(), 252u8);
     /// ```
-    ///
-    /// # Performance
-    /// In an optimized build, the combination of [`Cast::cast`] and
-    /// [`AssumedLossless::assumed_lossless`] generally compiles to the same assembly as the `as`
-    /// keyword and thus is zero-overhead.
     fn assumed_lossless(self) -> T;
 }

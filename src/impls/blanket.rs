@@ -3,9 +3,20 @@
 use crate::base::CastImpl;
 use crate::bounds::{CastTo, CastToClosest, CastToLossless};
 use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
-use crate::errors::{FailedCastError, LossyCastError};
-use super::LosslessCast;
+use crate::errors::{LosslessCastError, LossyCastError};
 use core::fmt::Debug;
+
+// Blanket implementation for AssumedLossless applied to all LosslessCastErrors. We need to
+// implement this even though it is impossible to construct a LosslessCastError in order to 
+// trigger the blanket implementation for Results.
+impl<CastFrom: Debug, CastTo: Debug> AssumedLossless<CastTo>
+for LosslessCastError<CastFrom, CastTo> {
+    #[inline]
+    fn assumed_lossless(self) -> CastTo {
+        // This is safe because LosslessCastError cannot be instantiated
+        unsafe {std::hint::unreachable_unchecked()}
+    }
+}
 
 // Blanket implementation for AssumedLossless applied to all LossyCastErrors
 impl<CastFrom: Debug, CastTo: Debug> AssumedLossless<CastTo>
@@ -33,6 +44,17 @@ impl<T, Error: AssumedLossless<T>> AssumedLossless<T> for Result<T, Error> {
     }
 }
 
+// Blanket implementation for Closest applied to all LosslessCastErrors. We need to
+// implement this even though it is impossible to construct a LosslessCastError in order to 
+// trigger the blanket implementation for Results.
+impl<CastFrom: Debug, CastTo: Debug> Closest<CastTo> for LosslessCastError<CastFrom, CastTo> {
+    #[inline]
+    fn closest(self) -> CastTo {
+        // This is safe because LosslessCastError cannot be instantiated
+        unsafe {std::hint::unreachable_unchecked()}
+    }
+}
+
 // Blanket implementation for Results containing Err variants which implement Closest
 impl<T, Error: Closest<T>> Closest<T> for Result<T, Error> {
     #[inline]
@@ -41,43 +63,47 @@ impl<T, Error: Closest<T>> Closest<T> for Result<T, Error> {
     }
 }
 
-// Blanket implementation for Results containing LossyCastErrors which implement LosslessCast.
-// We do this specifically for LossyCastErrors instead of all implementing Errors because we want
-// the CastFrom and CastTo types to populate the debug_assert message.
-impl<CastFrom, CastTo> Lossless<CastTo> for Result<CastTo, LossyCastError<CastFrom, CastTo>> where
-    LossyCastError<CastFrom, CastTo> : LosslessCast {
+// Blanket implementation for Lossless applied to all LosslessCastErrors. We need to
+// implement this even though it is impossible to construct a LosslessCastError in order to 
+// trigger the blanket implementation for CastToLossless.
+unsafe impl<CastFrom: Debug, CastTo: Debug> Lossless<CastTo> for LosslessCastError<CastFrom, 
+CastTo> {
     #[inline]
     fn lossless(self) -> CastTo {
-        unsafe {lossless_impl::<CastFrom, _, _>(self)}
+        // This is safe because LosslessCastError cannot be instantiated
+        unsafe {std::hint::unreachable_unchecked()}
     }
 }
 
-// Blanket implementation for Results containing FailedCastErrors which implement LosslessCast.
-// We do this specifically for FailedCastErrors instead of all implementing Errors because we want
-// the CastFrom and CastTo types to populate the debug_assert message.
-impl<CastFrom, CastTo> Lossless<CastTo> for Result<CastTo, FailedCastError<CastFrom, CastTo>> where
-    FailedCastError<CastFrom, CastTo> : LosslessCast {
+// Blanket implementation for Lossless for Results containing Err variants which implement Lossless
+unsafe impl<T, Error: Lossless<T>> Lossless<T> for Result<T, Error> {
     #[inline]
-    fn lossless(self) -> CastTo {
-        unsafe {lossless_impl::<CastFrom, _, _>(self)}
+    fn lossless(self) -> T {
+        // Provide a debug assertion to catch implementation errors
+        debug_assert!(
+            self.is_ok(),
+            "Implementation error: \
+            implemented Lossless for invalid cast error [Target: {}][Error: {}]",
+            core::any::type_name::<T>(),
+            core::any::type_name::<Error>()
+        );
+        
+        // This is safe because Error implements Lossless; for this not to be safe, the Error type
+        // must have unsafely implemented Lossless and not maintained its safety guarantees, which
+        // is a bug.
+        unsafe {self.unwrap_unchecked()}
     }
 }
 
-/// Helper function for the Lossless cast implementations
-/// 
-/// # Safety
-/// Must only be called for `result`s which are guaranteed Ok(())
-unsafe fn lossless_impl<CastFrom, CastTo, Error>(result: Result<CastTo, Error>) -> CastTo {
-    // Panic in debug builds if this is implemented incorrectly; this implies a bug in Cove
-    debug_assert!(
-        result.is_ok(),
-        "Implementation error: implemented Lossless for invalid types [{} -> {}]",
-        core::any::type_name::<CastFrom>(),
-        core::any::type_name::<CastTo>()
-    );
-
-    // Just unwrap the Ok variant, as the result cannot be Err
-    result.unwrap_unchecked()
+// Blanket implementation for Lossy applied to all LosslessCastErrors. We need to
+// implement this even though it is impossible to construct a LosslessCastError in order to 
+// trigger the blanket implementation for Results.
+impl<CastFrom: Debug, CastTo: Debug> Lossy<CastTo> for LosslessCastError<CastFrom, CastTo> {
+    #[inline]
+    fn lossy(self) -> CastTo {
+        // This is safe because LosslessCastError cannot be instantiated
+        unsafe {std::hint::unreachable_unchecked()}
+    }
 }
 
 // Blanket implementation for Lossy applied to all LossyCastErrors
@@ -106,19 +132,13 @@ impl<
 }
 
 // Blanket implementation for the CastToClosest subtrait
-impl<
-    TO, 
-    ERROR: Copy + Closest<TO>, 
-    FROM: Cast + CastImpl<TO, Error = ERROR>
-> CastToClosest<TO> for FROM {
+impl<TO, ERROR: Copy + Closest<TO>, FROM: Cast + CastImpl<TO, Error = ERROR>> CastToClosest<TO> 
+for FROM {
     type _Error = ERROR;
 }
 
 // Blanket implementation for the CastToLossless subtrait
-impl<
-    TO,
-    ERROR: Copy + LosslessCast,
-    FROM: Cast + CastImpl<TO, Error = ERROR>
-> CastToLossless<TO> for FROM {
+impl<TO, ERROR: Copy + Lossless<TO>, FROM: Cast + CastImpl<TO, Error = ERROR>> CastToLossless<TO> 
+for FROM {
     type _Error = ERROR;
 }

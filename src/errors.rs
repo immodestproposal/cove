@@ -1,7 +1,34 @@
 //! Provides error types returned from [`Cast::cast`](crate::casts::Cast) for casts provided by
 //! cove
 //! 
-//! See the [`crate error documentation`](crate#cast-errors) for an overview.
+//! Cove uses three error types in its casts:
+//!
+//! * [`LosslessCastError`]: for casts which are guaranteed lossless from their types alone
+//!     * Acts as a marker type: cannot actually be constructed 
+//! * [`LossyCastError`]: for lossy casts which are able to represent the lossy value as the target 
+//! type
+//!     * Used in most of cove's casts
+//!     * Allows for retrieving the origin and target values via the `from` and `to` member fields:
+//!     ```
+//!     # use cove::prelude::*;
+//!     assert_eq!(260u32.cast::<u8>().unwrap_err().from, 260u32);
+//!     assert_eq!(260u32.cast::<u8>().unwrap_err().to, 4u8);
+//!     ```
+//!     * Provides a descriptive message
+//!         * e.g. `"Numerical cast was lossy [260 (u32) -> 4 (u8)]"`
+//! * [`FailedCastError`]: for lossy casts which are unable to represent
+//!     the lossy value as the target type
+//!     * Used for certain `NonZero*` casts, where representing e.g.
+//!         [`NonZeroUsize`](core::num::NonZeroUsize) in the error type could invoke undefined
+//!         behavior
+//!     * Allows for retrieving the origin (but not target) value via the `from` member field:
+//!     ```
+//!     # use cove::prelude::*;
+//!     # use std::num::NonZeroU8;
+//!     assert_eq!(0u32.cast::<NonZeroU8>().unwrap_err().from, 0u32);
+//!     ```
+//!     * Provides as descriptive an error message as possible
+//!         * e.g. `"Numerical cast failed [0 (u32) -> (core::num::nonzero::NonZeroU8)]"`
 
 use core::fmt::{Debug, Display, Formatter};
 use core::marker::PhantomData;
@@ -17,7 +44,7 @@ use core::marker::PhantomData;
 pub struct LosslessCastError<CastFrom, CastTo>(PhantomData<(CastFrom, CastTo)>);
 
 impl<CastFrom: Display, CastTo> Display for LosslessCastError<CastFrom, CastTo> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> core::fmt::Result {
+    fn fmt(&self, _formatter: &mut Formatter<'_>) -> core::fmt::Result {
         // This is safe because LosslessCastError cannot be instantiated; it is really just a holder
         // of type information.
         unsafe {core::hint::unreachable_unchecked()}

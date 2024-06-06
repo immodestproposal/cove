@@ -100,7 +100,7 @@ fn check_cast<FROM: Copy + Display + CastTo<TO>, TO: Copy + Display>
     // Normalize the strings and compare
     let from_text = normalize(from_buffer.as_str());
     let to_text = normalize(to_buffer.as_str());
-    let are_equal = (from_text == to_text) && (from_text != "NaN");
+    let are_equal = from_text == to_text;
 
     #[allow(clippy::match_bool)]
     match result.is_ok() {

@@ -2,7 +2,7 @@
 
 #![allow(clippy::wildcard_imports)]
 
-use crate::casts::{Cast, Closest};
+use crate::casts::{Cast, Closest, Lossless};
 use crate::errors::{FailedCastError, LosslessCastError, LossyCastError};
 use crate::base::CastImpl;
 
@@ -12,100 +12,41 @@ use core::num::{
 };
 
 macro_rules! cast {
-    ($($nonzero_unsigned:ty),+; $($nonzero_signed:ty),+; $($integer:ty),+; $($floating:ty),+) => {
+    // Implements Cast for each `$num`
+    ($($num:ty),+) => {
         $(
-            impl Cast for $nonzero_unsigned {}
-            impl Cast for $nonzero_signed {}
+            impl Cast for $num {}
         )*
-
-        // Generate the nonzero to nonzero implementations in n-squared fashion
-        cast!(
-            nonzero $($nonzero_unsigned),*, $($nonzero_signed),* =>
-            ($($nonzero_unsigned),*, $($nonzero_signed),*)
-        );
-
-        // Generate the nonzero to primitive implementations in n*m fashion
-        cast!(
-            to_primitive $($nonzero_unsigned),*, $($nonzero_signed),* =>
-            ($($integer),*, $($floating),*)
-        );
-
-        cast!(to_integer $($nonzero_unsigned),*, $($nonzero_signed),* => ($($integer),*));
-        cast!(to_floating $($nonzero_unsigned),*, $($nonzero_signed),* => ($($floating),*));
-
-        // Generate the primitive to nonzero implementations in n*m fashion
-        cast!(
-            from_primitive $($integer),*, $($floating),* =>
-            ($($nonzero_unsigned),*, $($nonzero_signed),*)
-        );
-        
-        // The closest value for 0 is 1 when coming from an integer to any nonzero
-        cast!(
-            from_primitive_positive_estimate $($integer),* =>
-            ($($nonzero_unsigned),*, $($nonzero_signed),*)
-        );
-
-        // The closest value for 0 is 1 when coming from a float to an unsigned nonzero
-        cast!(from_primitive_positive_estimate $($floating),* => ($($nonzero_unsigned),*));
-
-        // The closest value for 0 could be 1 or -1 when coming from a float to a signed nonzero
-        cast!(from_floating_to_signed $($floating),* => ($($nonzero_signed),*));
     };
 
-    // -- Adapters for calling sub-macro permutations -- //
-    (nonzero $($from:ty),+ => $args:tt) => {
-        $(cast!(@nonzero $from => $args);)*
-    };
-
-    (to_primitive $($from:ty),+ => $args:tt) => {
-        $(cast!(@to_primitive $from => $args);)*
-    };
-
-    (to_integer $($from:ty),+ => $args:tt) => {
-        $(cast!(@to_integer $from => $args);)*
-    };
-
-    (to_floating $($from:ty),+ => $args:tt) => {
-        $(cast!(@to_floating $from => $args);)*
-    };
-
-    (from_primitive $($from:ty),+ => $args:tt) => {
-        $(cast!(@from_primitive $from => $args);)*
-    };
-
-    (from_primitive_positive_estimate $($from:ty),+ => $args:tt) => {
-        $(cast!(@from_primitive_positive_estimate $from => $args);)*
-    };
-
-    (from_floating_to_signed $($from:ty),+ => $args:tt) => {
-        $(cast!(@from_floating_to_signed $from => $args);)*
-    };
-
-    // -- Sub-macros -- //
-    (@nonzero $from:ty => ($($to:ty),+)) => {
+    // Implements Cast and Closest for each pair via LossyCastError:
+    // * `$from` -> `$nonzero` where `$from` is NonZero* and `$nonzero` is also NonZero*
+    // * `$from` -> `$primitive` where `$from` is NonZero* and `$primitive` is a primitive
+    // Closest is implemented in terms of the underlying primitive implementation of Closest.
+    (from_nonzero $from:ty => $($nonzero:ty),+; $($primitive:ty),+) => {
         $(
-            impl CastImpl<$to> for $from {
-                type Error = LossyCastError<Self, $to>;
+            impl CastImpl<$nonzero> for $from {
+                type Error = LossyCastError<Self, $nonzero>;
 
                 #[inline]
-                fn cast_impl(self) -> Result<$to, Self::Error> {
+                fn cast_impl(self) -> Result<$nonzero, Self::Error> {
                     // Safe to use `new_unchecked` because the value cannot be zero
                     match self.get().cast() {
-                        Ok(value) => Ok(unsafe {<$to>::new_unchecked(value)}),
+                        Ok(value) => Ok(unsafe {<$nonzero>::new_unchecked(value)}),
                         Err(error) => Err(LossyCastError {
                             from: self,
-                            to: unsafe {<$to>::new_unchecked(error.to)}
+                            to: unsafe {<$nonzero>::new_unchecked(error.to)}
                         })
                     }
                 }
             }
 
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl Closest<$nonzero> for LossyCastError<$from, $nonzero> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn closest(self) -> $nonzero {
                     unsafe {
                         // Safe to use `new_unchecked` because the value cannot be zero
-                        <$to>::new_unchecked(
+                        <$nonzero>::new_unchecked(
                             LossyCastError {
                                 from: self.from.get(),
                                 to: self.to.get()
@@ -115,30 +56,25 @@ macro_rules! cast {
                 }
             }
         )*
-    };
 
-    (@to_primitive $from:ty => ($($to:ty),+)) => {
         $(
-            impl CastImpl<$to> for $from {
-                type Error = LossyCastError<Self, $to>;
+            impl CastImpl<$primitive> for $from {
+                type Error = LossyCastError<Self, $primitive>;
 
                 #[inline]
-                fn cast_impl(self) -> Result<$to, Self::Error> {
-                    self.get().cast::<$to>().map_err(|error| LossyCastError {
+                fn cast_impl(self) -> Result<$primitive, Self::Error> {
+                    // Cast via the associated primitive
+                    self.get().cast::<$primitive>().map_err(|error| Self::Error {
                         from: self,
                         to: error.to
                     })
                 }
             }
-        )*
-    };
 
-    (@to_integer $from:ty => ($($to:ty),+)) => {
-        $(
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl Closest<$primitive> for LossyCastError<$from, $primitive> {
                 #[inline]
-                fn closest(self) -> $to {
-                    // Delegate to the primitive's implementation of closest
+                fn closest(self) -> $primitive {
+                    // Cast via the associated primitive
                     LossyCastError {
                         from: self.from.get(),
                         to: self.to
@@ -148,54 +84,99 @@ macro_rules! cast {
         )*
     };
 
-    (@to_floating $from:ty => ($($to:ty),+)) => {
+    (from_nonzero $first:ty, $($from:ty),+ => $nonzero:tt; $primitive:tt) => {
+        cast!(from_nonzero $first => $nonzero; $primitive);
+        $(cast!(from_nonzero $from => $nonzero; $primitive);)*
+    };
+
+    // $from must be NonZero* because there is no Lossless available from primitive -> NonZero*
+    (lossless $from:ty => $($nonzero:ty),*; $($primitive:ty),*) => {
         $(
-            impl Closest<$to> for LossyCastError<$from, $to> {
+            impl CastImpl<$nonzero> for $from {
+                type Error = LosslessCastError<Self, $nonzero>;
+
                 #[inline]
-                fn closest(self) -> $to {
-                    // For int-to-float the raw cast is the closest
-                    self.to
+                fn cast_impl(self) -> Result<$nonzero, Self::Error> {
+                    // Safe to use `new_unchecked` because the value cannot be zero
+                    Ok(unsafe {<$nonzero>::new_unchecked(self.get().cast().lossless())})
+                }
+            }
+        )*
+
+        $(
+            impl CastImpl<$primitive> for $from {
+                type Error = LosslessCastError<Self, $primitive>;
+
+                #[inline]
+                fn cast_impl(self) -> Result<$primitive, Self::Error> {
+                    Ok(self.get().cast().lossless())
                 }
             }
         )*
     };
 
-    (@from_primitive $from:ty => ($($to:ty),+)) => {
+    (lossless $first:ty, $($from:ty),+ => $nonzero:tt; $primitive:tt) => {
+        cast!(lossless $first => $nonzero; $primitive);
+        $(cast!(lossless $from => $nonzero; $primitive);)*
+    };
+
+    // Implements Cast and Closest for each pair via FailedCastError:
+    // `$primitive` -> `$nonzero` where `$primitive` is a primitive and `$nonzero` is a NonZero*
+    // Closest is implemented in terms of the underlying primitive implementation of Closest, but
+    // mapping 0 -> 1.
+    (from_primitive $primitive:ty => ($($nonzero:ty),+)) => {
         $(
-            impl CastImpl<$to> for $from {
-                type Error = FailedCastError<Self, $to>;
+            impl CastImpl<$nonzero> for $primitive {
+                type Error = FailedCastError<Self, $nonzero>;
 
                 #[inline]
-                fn cast_impl(self) -> Result<$to, Self::Error> {
+                fn cast_impl(self) -> Result<$nonzero, Self::Error> {
                     // Cast to the root primitive of the nonzero before creating the nonzero
                     let primitive = self.cast().map_err(|_error| FailedCastError::new(self))?;
-                    <$to>::new(primitive).ok_or_else(|| FailedCastError::new(self))
+                    <$nonzero>::new(primitive).ok_or_else(|| FailedCastError::new(self))
                 }
             }
-        )*
-    };
 
-    (@from_primitive_positive_estimate $from:ty => ($($to:ty),+)) => {
-        $(
-            impl Closest<$to> for FailedCastError<$from, $to> {
+            impl Closest<$nonzero> for FailedCastError<$primitive, $nonzero> {
                 #[inline]
-                fn closest(self) -> $to {
+                fn closest(self) -> $nonzero {
                     // Create the NonZero from the closest primitive, using a value of 1 if 0
-                    <$to>::new(self.from.cast().closest())
-                        .unwrap_or_else(|| unsafe {<$to>::new_unchecked(1)})
+                    <$nonzero>::new(self.from.cast().closest())
+                        .unwrap_or_else(|| unsafe {<$nonzero>::new_unchecked(1)})
                 }
             }
         )*
     };
 
-    (@from_floating_to_signed $from:ty => ($($to:ty),+)) => {
+    (from_primitive $first:ty, $($primitive:ty),+ => $nonzero:tt) => {
+        cast!(from_primitive $first => $nonzero);
+        $(cast!(from_primitive $primitive => $nonzero);)*
+    };
+
+    // Implements Cast and Closest for each pair via FailedCastError:
+    // `$float` -> `$signed_nonzero` where `$float` is a float point primitive and `$signed_nonzero`
+    // is a NonZeroI* (that is, a signed NonZero* type)
+    // Closest is implemented in terms of the underlying primitive implementation of Closest, but
+    // mapping +0 -> 1 and -0 to -1.
+    (from_float_to_signed $float:ty => ($($signed_nonzero:ty),+)) => {
         $(
-            impl Closest<$to> for FailedCastError<$from, $to> {
+            impl CastImpl<$signed_nonzero> for $float {
+                type Error = FailedCastError<Self, $signed_nonzero>;
+
                 #[inline]
-                fn closest(self) -> $to {
+                fn cast_impl(self) -> Result<$signed_nonzero, Self::Error> {
+                    // Cast to the root primitive of the nonzero before creating the nonzero
+                    let primitive = self.cast().map_err(|_error| FailedCastError::new(self))?;
+                    <$signed_nonzero>::new(primitive).ok_or_else(|| FailedCastError::new(self))
+                }
+            }
+
+            impl Closest<$signed_nonzero> for FailedCastError<$float, $signed_nonzero> {
+                #[inline]
+                fn closest(self) -> $signed_nonzero {
                     // Create the NonZero from the closest primitive
-                    <$to>::new(self.from.cast().closest())
-                        .unwrap_or_else(|| unsafe {<$to>::new_unchecked(
+                    <$signed_nonzero>::new(self.from.cast().closest())
+                        .unwrap_or_else(|| unsafe {<$signed_nonzero>::new_unchecked(
                             // Use a value of 1 if positive or -1 otherwise
                             match self.from.is_sign_positive() {
                                 true => 1,
@@ -207,64 +188,140 @@ macro_rules! cast {
         )*
     };
 
-    (lossless $from:ty => $($to:ty),+) => {
-        $(impl LosslessCast for LossyCastError<$from, $to> {})*
-    };
-
-    (lossless $first:ty, $($from:ty),+ => $to:ty) => {
-        cast!(lossless $first => $to);
-        $(cast!(lossless $from => $to));*;
-    };
+    (from_float_to_signed $first:ty, $($float:ty),+ => $signed_nonzero:tt) => {
+        cast!(from_float_to_signed $first => $signed_nonzero);
+        $(cast!(from_float_to_signed $float => $signed_nonzero);)*
+    }
 }
 
 // -- Macro-Generated Bulk Implementations: Portable -- //
 cast!(
-    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize;
-    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize;
-    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize;
-    f32, f64
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
 );
 
 cast!(
     lossless NonZeroU8 =>
-        NonZeroU8,  NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
-        NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
-        u8, u16, u32, u64, u128, usize,
-        i16, i32, i64, i128, isize
+    NonZeroU8,  NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+    NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128;
+    u8, u16, u32, u64, u128,
+    i16, i32, i64, i128,
+    f32, f64
 );
+
+cast!(from_nonzero NonZeroU8 => NonZeroI8; i8);
 
 cast!(
     lossless NonZeroU16 =>
-        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128,
-        u16, u32, u64, u128, usize, i32, i64, i128
+    NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128;
+    u16, u32, u64, u128,
+    i32, i64, i128,
+    f32, f64
 );
+
+cast!(from_nonzero NonZeroU16 => NonZeroU8, NonZeroI8, NonZeroI16; u8, i8, i16);
 
 cast!(
     lossless NonZeroU32 =>
-        NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128,
-        u32, u64, u128, i64, i128
+    NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128;
+    u32, u64, u128, i64, i128, f64
 );
 
-cast!(lossless NonZeroU64 => NonZeroU64, NonZeroU128, NonZeroI128, u64, u128, i128);
-cast!(lossless NonZeroU128 => NonZeroU128, u128);
-cast!(lossless NonZeroUsize => NonZeroUsize, usize);
+cast!(
+    from_nonzero NonZeroU32 =>
+    NonZeroU8, NonZeroU16, NonZeroI8, NonZeroI16, NonZeroI32;
+    u8, u16, i8, i16, i32, f32
+);
+
+cast!(lossless NonZeroU64 => NonZeroU64, NonZeroU128, NonZeroI128; u64, u128, i128);
+
+cast!(
+    from_nonzero NonZeroU64 =>
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64;
+    u8, u16, u32, i8, i16, i32, i64, f32, f64
+);
+
+cast!(lossless NonZeroU128 => NonZeroU128; u128);
+
+cast!(
+    from_nonzero NonZeroU128 =>
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128;
+    u8, u16, u32, u64, i8, i16, i32, i64, i128, f32, f64
+);
 
 cast!(
     lossless NonZeroI8 =>
-        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
-        i8, i16, i32, i64, i128, isize
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128;
+    i8, i16, i32, i64, i128, f32, f64
+);
+
+cast!(
+    from_nonzero NonZeroI8 =>
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128;
+    u8, u16, u32, u64, u128
 );
 
 cast!(
     lossless NonZeroI16 =>
-    NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
-    i16, i32, i64, i128, isize
+    NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128;
+    i16, i32, i64, i128, f32, f64
 );
 
-cast!(lossless NonZeroI32 => NonZeroI32, NonZeroI64, NonZeroI128, i32, i64, i128);
-cast!(lossless NonZeroI64 => NonZeroI64, NonZeroI128, i64, i128);
-cast!(lossless NonZeroI128 => NonZeroI128, i128);
-cast!(lossless NonZeroIsize => NonZeroIsize, isize);
+cast!(
+    from_nonzero NonZeroI16 =>
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+    NonZeroI8;
+    u8, u16, u32, u64, u128, i8
+);
+
+cast!(lossless NonZeroI32 => NonZeroI32, NonZeroI64, NonZeroI128; i32, i64, i128, f64);
+
+cast!(
+    from_nonzero NonZeroI32 =>
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+    NonZeroI8, NonZeroI16;
+    u8, u16, u32, u64, u128, i8, i16, f32
+);
+
+cast!(lossless NonZeroI64 => NonZeroI64, NonZeroI128; i64, i128);
+
+cast!(
+    from_nonzero NonZeroI64 =>
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+    NonZeroI8, NonZeroI16, NonZeroI32;
+    u8, u16, u32, u64, u128, i8, i16, i32, f32, f64
+);
+
+cast!(lossless NonZeroI128 => NonZeroI128; i128);
+
+cast!(
+    from_nonzero NonZeroI128 =>
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64;
+    u8, u16, u32, u64, u128, i8, i16, i32, i64, f32, f64
+);
+
+cast!(
+    from_primitive 
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize => (
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize,
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
+));
+
+cast!(from_primitive f32, f64 => (
+    NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroUsize
+));
+
+cast!(from_float_to_signed f32, f64 => (
+    NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128, NonZeroIsize
+));
+
+cast!(lossless NonZeroUsize => NonZeroUsize; usize);
+cast!(from_nonzero NonZeroUsize => NonZeroIsize; isize);
+
+cast!(lossless NonZeroIsize => NonZeroIsize; isize);
+cast!(from_nonzero NonZeroIsize => NonZeroUsize; usize);
 
 // -- Macro-Generated Bulk Implementations: Non-Portable -- //
 #[cfg(target_pointer_width = "16")]
@@ -273,18 +330,44 @@ mod platform_dependent {
 
     cast!(
         lossless NonZeroUsize =>
-            NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128,
-            u16, u32, u64, u128, i32, i64, i128
+        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI32, NonZeroI64, NonZeroI128;
+        u16, u32, u64, u128,
+        i32, i64, i128,
+        f32, f64
     );
+
+    cast!(from_nonzero NonZeroUsize => NonZeroU8, NonZeroI8, NonZeroI16; u8, i8, i16);
 
     cast!(
         lossless NonZeroIsize =>
-            NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128,
-            i16, i32, i64, i128
+        NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128;
+        i16, i32, i64, i128, f32, f64
     );
 
-    cast!(lossless NonZeroU8, NonZeroU16 => NonZeroUsize);
-    cast!(lossless NonZeroU8, NonZeroI8, NonZeroI16 => NonZeroIsize);
+    cast!(
+        from_nonzero NonZeroIsize =>
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+        NonZeroI8;
+        u8, u16, u32, u64, u128, i8
+    );
+
+    cast!(lossless NonZeroU8, NonZeroU16 => NonZeroUsize; usize);
+
+    cast!(
+        from_nonzero
+        NonZeroU32, NonZeroU64, NonZeroU128,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128
+        => NonZeroUsize; usize
+    );
+
+    cast!(lossless NonZeroU8, NonZeroI8, NonZeroI16 => NonZeroIsize; isize);
+
+    cast!(
+        from_nonzero
+        NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+        NonZeroI32, NonZeroI64, NonZeroI128
+        => NonZeroIsize; isize
+    );
 }
 
 #[cfg(target_pointer_width = "32")]
@@ -293,33 +376,85 @@ mod platform_dependent {
 
     cast!(
         lossless NonZeroUsize =>
-            NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128,
-            u32, u64, u128, i64, i128
+        NonZeroU32, NonZeroU64, NonZeroU128, NonZeroI64, NonZeroI128;
+        u32, u64, u128, i64, i128, f64
     );
 
-    cast!(lossless NonZeroIsize => NonZeroI32, NonZeroI64, NonZeroI128, i32, i64, i128);
+    cast!(
+        from_nonzero NonZeroUsize =>
+        NonZeroU8, NonZeroU16, NonZeroI8, NonZeroI16, NonZeroI32;
+        u8, u16, i8, i16, i32, f32
+    );
 
-    cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32 => NonZeroUsize);
-    cast!(lossless NonZeroU32 => usize);
+    cast!(lossless NonZeroIsize => NonZeroI32, NonZeroI64, NonZeroI128; i32, i64, i128, f64);
 
-    cast!(lossless NonZeroU8, NonZeroU16, NonZeroI8, NonZeroI16, NonZeroI32 => NonZeroIsize);
-    cast!(lossless NonZeroU16, NonZeroI32 => isize);
+    cast!(
+        from_nonzero NonZeroIsize =>
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+        NonZeroI8, NonZeroI16;
+        u8, u16, u32, u64, u128, i8, i16, f32
+    );
+
+    cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32 => NonZeroUsize; usize);
+
+    cast!(
+        from_nonzero
+        NonZeroU64, NonZeroU128,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128
+        => NonZeroUsize; usize
+    );
+
+    cast!(
+        lossless
+        NonZeroU8, NonZeroU16,
+        NonZeroI8, NonZeroI16, NonZeroI32 =>
+        NonZeroIsize; isize
+    );
+
+    cast!(
+        from_nonzero
+        NonZeroU32, NonZeroU64, NonZeroU128,
+        NonZeroI64, NonZeroI128
+        => NonZeroIsize; isize
+    );
 }
 
 #[cfg(target_pointer_width = "64")]
 mod platform_dependent {
     use super::*;
 
-    cast!(lossless NonZeroUsize => NonZeroU64, NonZeroU128, NonZeroI128, u64, u128, i128);
-    cast!(lossless NonZeroIsize => NonZeroI64, NonZeroI128, i64, i128);
-
-    cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64 => NonZeroUsize);
-    cast!(lossless NonZeroU32, NonZeroU64 => usize);
+    cast!(lossless NonZeroUsize => NonZeroU64, NonZeroU128, NonZeroI128; u64, u128, i128);
 
     cast!(
-        lossless NonZeroU8, NonZeroU16, NonZeroU32, NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64
-        => NonZeroIsize
+        from_nonzero NonZeroUsize =>
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64;
+        u8, u16, u32, i8, i16, i32, i64, f32, f64
     );
 
-    cast!(lossless NonZeroU16, NonZeroU32, NonZeroI32, NonZeroI64 => isize);
+    cast!(lossless NonZeroIsize => NonZeroI64, NonZeroI128; i64, i128);
+
+    cast!(
+        from_nonzero NonZeroIsize =>
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+        NonZeroI8, NonZeroI16, NonZeroI32;
+        u8, u16, u32, u64, u128, i8, i16, i32, f32, f64
+    );
+
+    cast!(lossless NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64 => NonZeroUsize; usize);
+
+    cast!(
+        from_nonzero
+        NonZeroU128,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128
+        => NonZeroUsize; usize
+    );
+
+    cast!(
+        lossless
+        NonZeroU8, NonZeroU16, NonZeroU32,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64
+        => NonZeroIsize; isize
+    );
+
+    cast!(from_nonzero NonZeroU64, NonZeroU128, NonZeroI128 => NonZeroIsize; isize);
 }

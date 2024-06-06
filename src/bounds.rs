@@ -57,7 +57,6 @@
 
 use crate::base::CastImpl;
 use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
-use crate::impls::LosslessCast;
 
 /// Provides a convenience subtrait for use with bounding generic function parameters
 /// 
@@ -212,5 +211,5 @@ pub trait CastToLossless<T>: Cast + CastImpl<T, Error = <Self as CastToLossless<
     /// This associated type is intended for internal use only; it is part of a workaround for Rust
     /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
     /// subtraits. Both are open issues, hence the workaround.
-    type _Result: Copy + Lossless<T>;
+    type _Error: Copy + Lossless<T>;
 }

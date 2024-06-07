@@ -20,7 +20,6 @@ macro_rules! check_cast {
 }
 
 #[test]
-
 fn random_f32() {
     random(|value| {
         // Build the f32 from the transmuted u32
@@ -29,7 +28,6 @@ fn random_f32() {
 }
 
 #[test]
-
 fn random_f64() {
     random(|high| {
         // Build the f64 from a transmuted u64 created from high and low u32s
@@ -38,15 +36,29 @@ fn random_f64() {
     });
 }
 
-#[test]
-
-fn random_u64() {
-    random(|high| {
-        // Build the u64 from high and low u32s
-        let low = util::random_next(high);
-        ((u64::from(high) << 32) | u64::from(low), util::random_next(low))
-    });
+macro_rules! random_integer_test {
+    ($($name:ident => $int:ty),*) => {
+        $(
+            #[test]
+            fn $name () {
+                random(|value| {
+                    // Generate a random byte buffer of the same size as $int to create the integer
+                    let (buffer, value) = util::random_bytes(value);
+                    (<$int>::from_ne_bytes(buffer), value)
+                })
+            }
+        )*
+    }
 }
+
+random_integer_test!(
+    random_u8    => u8,    random_i8    => i8,
+    random_u16   => u16,   random_i16   => i16,
+    random_u32   => u32,   random_i32   => i32,
+    random_u64   => u64,   random_i64   => i64,
+    random_u128  => u128,  random_i128  => i128,
+    random_usize => usize, random_isize => isize
+);
 
 fn random<
     T: Copy + Display +

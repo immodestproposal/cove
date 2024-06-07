@@ -1,4 +1,4 @@
-//! These tests cover the base Cast trait
+//! These tests cover the base `Cast` trait for primitives to both primitives and `NonZero*` types
 
 use cove::prelude::*;
 

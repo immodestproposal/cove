@@ -1,9 +1,37 @@
+//! These are randomly-generated tests covering the base `Cast` trait for primitives to primitives
+
 mod util;
 
 use cove::bounds::CastTo;
 use cove::prelude::*;
 use core::fmt::{Display, Write};
 use util::FixedString;
+
+// Helper macro for generating random primitive tests
+macro_rules! generate_tests {
+    ($($name:ident as $primitive:ty),*) => {
+        $(
+            #[test]
+            fn $name () {
+                random(|value| {
+                    // Generate a random byte buffer of the same size as $int to create the integer
+                    let (buffer, value) = util::random_bytes(value);
+                    (<$primitive>::from_ne_bytes(buffer), value)
+                })
+            }
+        )*
+    }
+}
+
+generate_tests!(
+    random_u8    as u8,    random_i8    as i8,
+    random_u16   as u16,   random_i16   as i16,
+    random_u32   as u32,   random_i32   as i32,
+    random_u64   as u64,   random_i64   as i64,
+    random_u128  as u128,  random_i128  as i128,
+    random_usize as usize, random_isize as isize,
+    random_f32   as f32,   random_f64   as f64
+);
 
 // Helper macro for checking a cast
 macro_rules! check_cast {
@@ -19,47 +47,9 @@ macro_rules! check_cast {
     }
 }
 
-#[test]
-fn random_f32() {
-    random(|value| {
-        // Build the f32 from the transmuted u32
-        (f32::from_bits(value), util::random_next(value))
-    });
-}
-
-#[test]
-fn random_f64() {
-    random(|high| {
-        // Build the f64 from a transmuted u64 created from high and low u32s
-        let low = util::random_next(high);
-        (f64::from_bits((u64::from(high) << 32) | u64::from(low)), util::random_next(low))
-    });
-}
-
-macro_rules! random_integer_test {
-    ($($name:ident => $int:ty),*) => {
-        $(
-            #[test]
-            fn $name () {
-                random(|value| {
-                    // Generate a random byte buffer of the same size as $int to create the integer
-                    let (buffer, value) = util::random_bytes(value);
-                    (<$int>::from_ne_bytes(buffer), value)
-                })
-            }
-        )*
-    }
-}
-
-random_integer_test!(
-    random_u8    => u8,    random_i8    => i8,
-    random_u16   => u16,   random_i16   => i16,
-    random_u32   => u32,   random_i32   => i32,
-    random_u64   => u64,   random_i64   => i64,
-    random_u128  => u128,  random_i128  => i128,
-    random_usize => usize, random_isize => isize
-);
-
+/// Performs random testing by casting the type T to each primitive type and checking that cove 
+/// correctly identified it as lossless or lossy. Calls `callback` with a random number to 
+/// generate the random values of type T.
 fn random<
     T: Copy + Display +
     CastTo<i8>    + CastTo<u8>    +
@@ -76,7 +66,7 @@ fn random<
     let mut random = util::random_seed();
 
     // Perform the tests
-    for _ in 0 .. ITERATIONS {
+    for _ in 0 .. util::settings::SLOW_ITERATIONS {
         // Generate the test value and the next random number via the callback
         let (value, next_random) = callback(random);
         random = next_random;
@@ -88,8 +78,6 @@ fn random<
         );
     }
 }
-
-const ITERATIONS: usize = 1000;
 
 /// Convenience alias for strings used in the tests
 type TestString = FixedString<5192>;

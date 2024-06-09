@@ -18,7 +18,7 @@ macro_rules! random {
                 let value = <$source>::from_ne_bytes(buffer);
                 random = next_random;
 
-                // Validate that the cast yields the same value as the `as` keyword for each target type
+                // Validate that the cast yields the same value as the `as` keyword for each type
                 $(
                     {
                         let lhs = value.cast::<$target>().lossy();

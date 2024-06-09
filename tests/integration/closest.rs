@@ -1,3 +1,6 @@
+//! These tests cover the `Closest` trait for primitives to primitives. This is a hard one for 
+//! which to provide random testing. 
+
 use cove::prelude::*;
 
 #[test]

@@ -1,5 +1,6 @@
 //! These tests cover the `Lossy` trait for primitives to primitives
 
+use crate::util::IsNaN;
 use cove::prelude::*;
 
 macro_rules! random {
@@ -50,30 +51,3 @@ random!(
     random_usize as usize, random_isize as isize,
     random_f32   as f32,   random_f64   as f64
 );
-
-// Helper trait to identify whether a number is NaN
-trait IsNaN {
-    fn is_nan(&self) -> bool {
-        false
-    }
-}
-
-impl IsNaN for f32 {
-    fn is_nan(&self) -> bool {
-        f32::is_nan(*self)
-    }
-}
-
-impl IsNaN for f64 {
-    fn is_nan(&self) -> bool {
-        f64::is_nan(*self)
-    }
-}
-
-macro_rules! mark_is_nan {
-    ($($int:ty),*) => {
-        $(impl IsNaN for $int {})*
-    }
-}
-
-mark_is_nan!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);

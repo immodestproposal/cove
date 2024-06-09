@@ -4,7 +4,7 @@ use crate::base::CastImpl;
 use crate::bounds::{CastTo, CastToClosest, CastToLossless};
 use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
 use crate::errors::{LosslessCastError, LossyCastError};
-use core::fmt::Debug;
+use core::fmt::{Debug, Display};
 
 // Blanket implementation for AssumedLossless applied to all LosslessCastErrors. We need to
 // implement this even though it is impossible to construct a LosslessCastError in order to 
@@ -122,23 +122,71 @@ impl<T, Error: Lossy<T>> Lossy<T> for Result<T, Error> {
     }
 }
 
-// Blanket implementation for the CastTo subtrait
-impl<
-    TO,
-    ERROR: Copy + AssumedLossless<TO> + Closest<TO> + Lossy<TO>,
-    FROM: Cast + CastImpl<TO, Error = ERROR>
-> CastTo<TO> for FROM {
-    type _Error = ERROR;
+// Blanket implementations for bounds traits using std
+#[cfg(feature = "std")]
+#[allow(clippy::wildcard_imports)]
+mod bounds_impl {
+    use super::*;
+    use std::error::Error;
+
+    // Blanket implementation for the CastTo subtrait
+    impl<
+        TO,
+        ERROR: Copy + Debug + Display + Error + AssumedLossless<TO> + Closest<TO> + Lossy<TO>,
+        FROM: Cast + CastImpl<TO, Error = ERROR>
+    > CastTo<TO> for FROM {
+        type _Error = ERROR;
+    }
+    
+    // Blanket implementation for the CastToClosest subtrait
+    impl<
+        TO, 
+        ERROR: Copy + Debug + Display + Error + Closest<TO>, 
+        FROM: Cast + CastImpl<TO, Error = ERROR>
+    > CastToClosest<TO> for FROM {
+        type _Error = ERROR;
+    }
+    
+    // Blanket implementation for the CastToLossless subtrait
+    impl<
+        TO, 
+        ERROR: Copy + Debug + Display + Error + Lossless<TO>, 
+        FROM: Cast + CastImpl<TO, Error = ERROR>
+    > CastToLossless<TO> for FROM {
+        type _Error = ERROR;
+    }
 }
 
-// Blanket implementation for the CastToClosest subtrait
-impl<TO, ERROR: Copy + Closest<TO>, FROM: Cast + CastImpl<TO, Error = ERROR>> CastToClosest<TO> 
-for FROM {
-    type _Error = ERROR;
-}
+// Blanket implementations for bounds traits using core
+#[cfg(not(feature = "std"))]
+#[allow(clippy::wildcard_imports)]
+mod bounds_impl {
+    use super::*;
 
-// Blanket implementation for the CastToLossless subtrait
-impl<TO, ERROR: Copy + Lossless<TO>, FROM: Cast + CastImpl<TO, Error = ERROR>> CastToLossless<TO> 
-for FROM {
-    type _Error = ERROR;
+    // Blanket implementation for the CastTo subtrait
+    impl<
+        TO,
+        ERROR: Copy + Debug + Display + AssumedLossless<TO> + Closest<TO> + Lossy<TO>,
+        FROM: Cast + CastImpl<TO, Error = ERROR>
+    > CastTo<TO> for FROM {
+        type _Error = ERROR;
+    }
+
+    // Blanket implementation for the CastToClosest subtrait
+    impl<
+        TO,
+        ERROR: Copy + Debug + Display + Closest<TO>,
+        FROM: Cast + CastImpl<TO, Error = ERROR>
+    > CastToClosest<TO> for FROM {
+        type _Error = ERROR;
+    }
+
+    // Blanket implementation for the CastToLossless subtrait
+    impl<
+        TO,
+        ERROR: Copy + Debug + Display + Lossless<TO>,
+        FROM: Cast + CastImpl<TO, Error = ERROR>
+    > CastToLossless<TO> for FROM {
+        type _Error = ERROR;
+    }
 }

@@ -57,6 +57,11 @@
 
 use crate::base::CastImpl;
 use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
+use core::fmt::{Debug, Display};
+
+#[cfg(feature = "std")]
+use std::error::Error;
+
 
 /// Provides a convenience subtrait for use with bounding generic function parameters
 /// 
@@ -134,7 +139,12 @@ pub trait CastTo<T> : Cast + CastImpl<T, Error = <Self as CastTo<T>>::_Error> {
     /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
     /// subtraits. Both are open issues, hence the workaround.
     #[doc(hidden)]
-    type _Error: Copy + AssumedLossless<T> + Closest<T> + Lossy<T>;
+    #[cfg(feature = "std")]
+    type _Error: Copy + Debug + Display + Error + AssumedLossless<T> + Closest<T> + Lossy<T>;
+
+    #[doc(hidden)]
+    #[cfg(not(feature = "std"))]
+    type _Error: Copy + Debug + Display + AssumedLossless<T> + Closest<T> + Lossy<T>;
 }
 
 /// Provides a convenience subtrait for use with bounding generic function parameters
@@ -181,7 +191,12 @@ pub trait CastToClosest<T> : Cast + CastImpl<T, Error = <Self as CastToClosest<T
     /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
     /// subtraits. Both are open issues, hence the workaround.
     #[doc(hidden)]
-    type _Error: Copy + Closest<T>;
+    #[cfg(feature = "std")]
+    type _Error: Copy + Debug + Display + Error + Closest<T>;
+
+    #[doc(hidden)]
+    #[cfg(not(feature = "std"))]
+    type _Error: Copy + Debug + Display + Closest<T>;
 }
 
 /// Provides a convenience subtrait for use with bounding generic function parameters
@@ -214,5 +229,10 @@ pub trait CastToLossless<T>: Cast + CastImpl<T, Error = <Self as CastToLossless<
     /// not yet (as of 1.78.0) supporting trait aliases in stable, nor elaborating where clauses to 
     /// subtraits. Both are open issues, hence the workaround.
     #[doc(hidden)]
-    type _Error: Copy + Lossless<T>;
+    #[cfg(feature = "std")]
+    type _Error: Copy + Debug + Display + Error + Lossless<T>;
+
+    #[doc(hidden)]
+    #[cfg(not(feature = "std"))]
+    type _Error: Copy + Debug + Display + Lossless<T>;
 }

@@ -266,11 +266,14 @@
 //! Consult the documentation on each casting trait for performance notes. Also refer to `asm.rs`
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
+// TODO: scope creep: add Bitwise and CastToBitwise traits (blanket impl probably fine)
 // TODO: tests
 // TODO:    * Add more, cover all bases (check coverage?)
+// TODO:    * Test errors as well (e.g. Display impls)
 // TODO:    * Run with all permutations: std/no_std, 16?/32/64-bit, debug/release
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
+// TODO:    * refactor docs, have mods specifically to add docs (like motivation/design rationale)
 // TODO:    * re-read all docs for correctness and completeness, especially since things were added
 // TODO:    * readme
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example

@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 //! These tests cover the `assumed_lossless` trait; they only work for std since they rely on
 //! `std::panic::catch_unwind`. In practice, however, that does a pretty good job of testing the
 //! core case, too.
@@ -7,7 +8,6 @@ use cove::prelude::*;
 use cove::bounds::CastTo;
 use core::fmt::Debug;
 
-#[cfg(feature = "std")]
 #[test]
 fn from_nan() {
     validate::<i8>(f32::NAN);
@@ -15,7 +15,6 @@ fn from_nan() {
 
 macro_rules! random {
     ($name:ident as $source:ty => $($target:ty),+) => {
-        #[cfg(feature = "std")]
         #[test]
         #[allow(clippy::float_cmp)]
         fn $name () {
@@ -59,7 +58,6 @@ random!(
 
 // Helper method to perform cast validation; this implementation assumes Cast itself isn't buggy, 
 // but that is tested elsewhere.
-#[cfg(feature = "std")]
 fn validate<TO: Copy + Debug + PartialEq + IsNaN>(from: impl Copy + CastTo<TO> + IsNaN) {
     // Perform the cast
     let casted = from.cast::<TO>();

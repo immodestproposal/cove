@@ -14,7 +14,7 @@ for LosslessCastError<CastFrom, CastTo> {
     #[inline]
     fn assumed_lossless(self) -> CastTo {
         // This is safe because LosslessCastError cannot be instantiated
-        unsafe {std::hint::unreachable_unchecked()}
+        unsafe {core::hint::unreachable_unchecked()}
     }
 }
 
@@ -51,7 +51,7 @@ impl<CastFrom: Debug, CastTo: Debug> Closest<CastTo> for LosslessCastError<CastF
     #[inline]
     fn closest(self) -> CastTo {
         // This is safe because LosslessCastError cannot be instantiated
-        unsafe {std::hint::unreachable_unchecked()}
+        unsafe {core::hint::unreachable_unchecked()}
     }
 }
 
@@ -71,7 +71,7 @@ CastTo> {
     #[inline]
     fn lossless(self) -> CastTo {
         // This is safe because LosslessCastError cannot be instantiated
-        unsafe {std::hint::unreachable_unchecked()}
+        unsafe {core::hint::unreachable_unchecked()}
     }
 }
 
@@ -102,7 +102,7 @@ impl<CastFrom: Debug, CastTo: Debug> Lossy<CastTo> for LosslessCastError<CastFro
     #[inline]
     fn lossy(self) -> CastTo {
         // This is safe because LosslessCastError cannot be instantiated
-        unsafe {std::hint::unreachable_unchecked()}
+        unsafe {core::hint::unreachable_unchecked()}
     }
 }
 

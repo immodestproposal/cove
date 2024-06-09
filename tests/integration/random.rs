@@ -1,11 +1,9 @@
 //! These are randomly-generated tests covering the base `Cast` trait for primitives to primitives
 
-mod util;
-
+use crate::util::FixedString;
 use cove::bounds::CastTo;
 use cove::prelude::*;
 use core::fmt::{Display, Write};
-use util::FixedString;
 
 // Helper macro for generating random primitive tests
 macro_rules! generate_tests {
@@ -15,7 +13,7 @@ macro_rules! generate_tests {
             fn $name () {
                 random(|value| {
                     // Generate a random byte buffer of the same size as $int to create the integer
-                    let (buffer, value) = util::random_bytes(value);
+                    let (buffer, value) = crate::util::random_bytes(value);
                     (<$primitive>::from_ne_bytes(buffer), value)
                 })
             }
@@ -63,10 +61,10 @@ fn random<
     // Initialization: allocate space for the test buffers and determine the initial seed
     let mut from_buffer = TestString::new();
     let mut to_buffer = TestString::new();
-    let mut random = util::random_seed();
+    let mut random = crate::util::random_seed();
 
     // Perform the tests
-    for _ in 0 .. util::settings::SLOW_ITERATIONS {
+    for _ in 0 .. crate::util::settings::SLOW_ITERATIONS {
         // Generate the test value and the next random number via the callback
         let (value, next_random) = callback(random);
         random = next_random;

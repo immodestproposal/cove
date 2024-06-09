@@ -1,7 +1,5 @@
 //! These tests cover the `Lossy` trait for primitives to primitives
 
-mod util;
-
 use cove::prelude::*;
 
 macro_rules! random {
@@ -10,12 +8,12 @@ macro_rules! random {
         #[allow(clippy::float_cmp)]
         fn $name () {
             // Initialization: allocate space for the test buffers and determine the initial seed
-            let mut random = util::random_seed();
+            let mut random = crate::util::random_seed();
 
             // Perform the tests
-            for _ in 0 .. util::settings::FAST_ITERATIONS {
+            for _ in 0 .. crate::util::settings::FAST_ITERATIONS {
                 // Generate the test value and next random number
-                let (buffer, next_random) = util::random_bytes(random);
+                let (buffer, next_random) = crate::util::random_bytes(random);
                 let value = <$source>::from_ne_bytes(buffer);
                 random = next_random;
 

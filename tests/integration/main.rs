@@ -4,3 +4,4 @@ mod nonzero;
 mod random;
 mod util;
 mod assumed_lossless;
+mod closest;

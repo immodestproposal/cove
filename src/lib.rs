@@ -273,6 +273,7 @@
 // TODO:    * Run with all permutations: std/no_std, 16?/32/64-bit, debug/release
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
+// TODO:    * make sure there is a test for each specific guarantee (e.g. 0 -> 1 for NonZero)
 // TODO:    * refactor docs, have mods specifically to add docs (like motivation/design rationale)
 // TODO:    * re-read all docs for correctness and completeness, especially since things were added
 // TODO:    * readme

@@ -267,10 +267,6 @@
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
 // TODO: scope creep: add Bitwise and CastToBitwise traits (blanket impl probably fine)
-// TODO: tests
-// TODO:    * Add more, cover all bases (check coverage?)
-// TODO:    * Test errors as well (e.g. Display impls)
-// TODO:    * Run with all permutations: std/no_std, 16?/32/64-bit, debug/release
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
 // TODO:    * make sure there is a test for each specific guarantee (e.g. 0 -> 1 for NonZero)
@@ -283,6 +279,7 @@
 // TODO: search for MATT and TODO and todo
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 
+mod doctests;
 mod impls;
 
 pub mod base;

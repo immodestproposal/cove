@@ -189,7 +189,7 @@ pub unsafe trait Lossless<T> {
     /// use cove::prelude::*;
     ///
     /// // Cast an isize to i32; compiles on platforms where isize is 16 or 32 bits, but not 64
-    /// assert_eq!(8isize.cast::<i32>().lossless(), 8usize);
+    /// assert_eq!(8isize.cast::<i32>().lossless(), 8i32);
     ///
     /// ```
     fn lossless(self) -> T;

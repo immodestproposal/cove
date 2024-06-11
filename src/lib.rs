@@ -267,6 +267,8 @@
 //! in cove's `examples` directory for assistance with testing assembly generation for your platform.
 
 // TODO: scope creep: add Bitwise and CastToBitwise traits (blanket impl probably fine)
+// TODO:    * fix docs
+// TODO:    * add tests, including compilation failure tests
 // TODO: documentation:
 // TODO:    * small example of using traits in a generic context
 // TODO:    * make sure there is a test for each specific guarantee (e.g. 0 -> 1 for NonZero)
@@ -274,7 +276,6 @@
 // TODO:    * re-read all docs for correctness and completeness, especially since things were added
 // TODO:    * readme
 // TODO: make sure all casts documented as zero-overhead have been covered in the asm example
-// TODO: make sure all errors are printing nicely (e.g. not "CastFrom" as the source type)
 // TODO: fill out cargo.toml more (badges, keywords, etc)
 // TODO: search for MATT and TODO and todo
 // TODO: solicit feedback, possibly take feedback, publish a 1.0

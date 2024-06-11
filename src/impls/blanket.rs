@@ -2,7 +2,7 @@
 
 use crate::base::CastImpl;
 use crate::bounds::{CastTo, CastToClosest, CastToLossless};
-use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
+use crate::casts::{AssumedLossless, Bitwise, Cast, Closest, Lossless, Lossy};
 use crate::errors::{LosslessCastError, LossyCastError};
 use core::fmt::{Debug, Display};
 

@@ -90,3 +90,29 @@ mod platform_dependent {}
 /// let _ = u64.cast::<isize>().lossless();
 /// ```
 mod platform_dependent {}
+
+#[cfg(target_pointer_width = "128")]
+/// ```compile_fail
+/// use cove::prelude::*;
+///
+/// let _ = 0usize.cast::<i128>().lossless();
+/// ```
+///
+/// ```compile_fail
+/// use cove::prelude::*;
+///
+/// let _ = 0isize.cast::<u128>().lossless();
+/// ```
+///
+/// ```compile_fail
+/// use cove::prelude::*;
+///
+/// let _ = i128.cast::<usize>().lossless();
+/// ```
+///
+/// ```compile_fail
+/// use cove::prelude::*;
+///
+/// let _ = u128.cast::<isize>().lossless();
+/// ```
+mod platform_dependent {}

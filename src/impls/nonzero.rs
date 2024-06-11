@@ -458,3 +458,47 @@ mod platform_dependent {
 
     cast!(from_nonzero NonZeroU64, NonZeroU128, NonZeroI128 => NonZeroIsize; isize);
 }
+
+#[cfg(target_pointer_width = "128")]
+mod platform_dependent {
+    use super::*;
+
+    cast!(lossless NonZeroUsize => NonZeroU128; u128);
+
+    cast!(
+        from_nonzero NonZeroUsize =>
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, 
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128;
+        u8, u16, u32, u64, i8, i16, i32, i64, i128, f32, f64
+    );
+
+    cast!(lossless NonZeroIsize => NonZeroI128; i128);
+
+    cast!(
+        from_nonzero NonZeroIsize =>
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64;
+        u8, u16, u32, u64, u128, i8, i16, i32, i64, f32, f64
+    );
+
+    cast!(
+        lossless 
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64, NonZeroU128 => 
+        NonZeroUsize; usize
+    );
+
+    cast!(
+        from_nonzero
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128
+        => NonZeroUsize; usize
+    );
+
+    cast!(
+        lossless
+        NonZeroU8, NonZeroU16, NonZeroU32, NonZeroU64,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroI64, NonZeroI128
+        => NonZeroIsize; isize
+    );
+
+    cast!(from_nonzero NonZeroU128 => NonZeroIsize; isize);
+}

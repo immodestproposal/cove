@@ -57,8 +57,8 @@ success!(random_isize as isize  => isize);
 mod platform_dependent {
     use super::*;
 
-    success!(random_usize as usize  => u16, u32, u64, u128, i32, i64, i128);
-    success!(random_isize as isize  => i16, i32, i64, i128);
+    success!(random_usize as usize  => u16, u32, u64, u128, i32, i64, i128, f32, f64);
+    success!(random_isize as isize  => i16, i32, i64, i128, f32, f64);
 
     success!(random_usize_from_u8  as u8  => usize);
     success!(random_usize_from_u16 as u16 => usize);
@@ -73,8 +73,8 @@ mod platform_dependent {
 mod platform_dependent {
     use super::*;
 
-    success!(random_usize as usize  => u32, u64, u128, i64, i128);
-    success!(random_isize as isize  => i32, i64, i128);
+    success!(random_usize as usize  => u32, u64, u128, i64, i128, f64);
+    success!(random_isize as isize  => i32, i64, i128, f64);
 
     success!(random_usize_from_u8  as u8  => usize);
     success!(random_usize_from_u16 as u16 => usize);
@@ -108,4 +108,29 @@ mod platform_dependent {
     success!(random_isize_from_i16 as i16 => isize);
     success!(random_isize_from_i32 as i32 => isize);
     success!(random_isize_from_i64 as i64 => isize);
+}
+
+#[cfg(target_pointer_width = "128")]
+mod platform_dependent {
+    use super::*;
+
+    success!(random_usize as usize  => u128);
+    success!(random_isize as isize  => i128);
+
+    success!(random_usize_from_u8   as u8   => usize);
+    success!(random_usize_from_u16  as u16  => usize);
+    success!(random_usize_from_u32  as u32  => usize);
+    success!(random_usize_from_u64  as u64  => usize);
+    success!(random_usize_from_u128 as u128 => usize);
+
+    success!(random_isize_from_u8   as u8   => isize);
+    success!(random_isize_from_u16  as u16  => isize);
+    success!(random_isize_from_u32  as u32  => isize);
+    success!(random_isize_from_u64  as u64  => isize);
+
+    success!(random_isize_from_i8   as i8   => isize);
+    success!(random_isize_from_i16  as i16  => isize);
+    success!(random_isize_from_i32  as i32  => isize);
+    success!(random_isize_from_i64  as i64  => isize);
+    success!(random_isize_from_i128 as i128 => isize);
 }

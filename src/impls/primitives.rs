@@ -346,6 +346,42 @@ mod platform_dependent {
     cast!(float_to_int f64 as u64 => (isize, 9_223_372_036_854_774_784_f64));
 }
 
+#[cfg(target_pointer_width = "128")]
+mod platform_dependent {
+    use super::*;
+
+    cast!(lossless usize => u128);
+    cast!(integer usize => u8, u16, u32, u64, i8, i16, i32, i64, i128);
+    
+    cast!(integer isize => u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
+
+    cast!(lossless u8, u16, u32, u64, u128 => usize);
+    cast!(integer i8, i16, i32, i64, i128 => usize);
+
+    cast!(lossless u8, u16, u32, u64, i8, i16, i32, i64, i128 => isize);
+    cast!(integer u128 => isize);
+
+    cast!(int_to_float usize, isize => f32);
+    cast!(int_to_float usize, isize => f64);
+
+    cast!(float_to_int f32 as u32 => (usize, f32::INFINITY));
+    
+    cast!(
+        float_to_int f32 as u32 => 
+        (isize, 170_141_173_319_264_429_905_852_091_742_258_462_720_f32)
+    );
+
+    cast!(
+        float_to_int f64 as u64 => 
+        (usize, 340_282_366_920_938_425_684_442_744_474_606_501_888_f64)
+    );
+    
+    cast!(
+        float_to_int f64 as u64 => 
+        (isize, 170_141_183_460_469_212_842_221_372_237_303_250_944_f64)
+    );
+}
+
 // -- Manual Implementations -- //
 impl CastImpl<f32> for f64 {
     type Error = LossyCastError<Self, f32>;

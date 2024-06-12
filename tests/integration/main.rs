@@ -1,4 +1,5 @@
 mod assumed_lossless;
+mod bitwise;
 mod cast;
 mod closest;
 mod lossless;

@@ -191,12 +191,14 @@ bitwise!(primitive u16, i16);
 bitwise!(primitive u32, i32, f32);
 bitwise!(primitive u64, i64, f64);
 bitwise!(primitive u128, i128);
+bitwise!(primitive usize, isize);
 
 bitwise!(nonzero primitive NonZeroU8, NonZeroI8 => {u8, i8});
 bitwise!(nonzero primitive NonZeroU16, NonZeroI16 => {u16, i16});
 bitwise!(nonzero primitive NonZeroU32, NonZeroI32 => {u32, i32, f32});
 bitwise!(nonzero primitive NonZeroU64, NonZeroI64 => {u64, i64, f64});
 bitwise!(nonzero primitive NonZeroU128, NonZeroI128 => {u128, i128});
+bitwise!(nonzero primitive NonZeroUsize, NonZeroIsize => {usize, isize});
 
 bitwise!(nonzero NonZeroU8, NonZeroI8);
 bitwise!(nonzero NonZeroU16, NonZeroI16);
@@ -214,6 +216,7 @@ mod platform_dependent {
     bitwise!(primitive primitive u16, i16 => {usize, isize});
     bitwise!(primitive primitive usize, isize => {u16, i16});
 
+    bitwise!(nonzero primitive NonZeroU16, NonZeroI16 => {usize, isize});
     bitwise!(nonzero primitive NonZeroUsize, NonZeroIsize => {u16, i16});
 
     bitwise!(nonzero nonzero NonZeroU16, NonZeroI16 => {NonZeroUsize, NonZeroIsize});
@@ -225,10 +228,11 @@ mod platform_dependent {
 mod platform_dependent {
     use super::*;
 
-    bitwise!(primitive primitive u32, i32 => {usize, isize});
-    bitwise!(primitive primitive usize, isize => {u32, i32});
+    bitwise!(primitive primitive u32, i32, f32 => {usize, isize});
+    bitwise!(primitive primitive usize, isize => {u32, i32, f32});
 
-    bitwise!(nonzero primitive NonZeroUsize, NonZeroIsize => {u32, i32});
+    bitwise!(nonzero primitive NonZeroU32, NonZeroI32 => {usize, isize});
+    bitwise!(nonzero primitive NonZeroUsize, NonZeroIsize => {u32, i32, f32});
 
     bitwise!(nonzero nonzero NonZeroU32, NonZeroI32 => {NonZeroUsize, NonZeroIsize});
     bitwise!(nonzero nonzero NonZeroUsize, NonZeroIsize => {NonZeroU32, NonZeroI32});
@@ -239,10 +243,11 @@ mod platform_dependent {
 mod platform_dependent {
     use super::*;
 
-    bitwise!(primitive primitive u64, i64 => {usize, isize});
-    bitwise!(primitive primitive usize, isize => {u64, i64});
-    
-    bitwise!(nonzero primitive NonZeroUsize, NonZeroIsize => {u64, i64});
+    bitwise!(primitive primitive u64, i64, f64 => {usize, isize});
+    bitwise!(primitive primitive usize, isize => {u64, i64, f64});
+
+    bitwise!(nonzero primitive NonZeroU64, NonZeroI64 => {usize, isize});
+    bitwise!(nonzero primitive NonZeroUsize, NonZeroIsize => {u64, i64, f64});
     
     bitwise!(nonzero nonzero NonZeroU64, NonZeroI64 => {NonZeroUsize, NonZeroIsize});
     bitwise!(nonzero nonzero NonZeroUsize, NonZeroIsize => {NonZeroU64, NonZeroI64});
@@ -256,6 +261,7 @@ mod platform_dependent {
     bitwise!(primitive primitive u128, i128 => {usize, isize});
     bitwise!(primitive primitive usize, isize => {u128, i128});
 
+    bitwise!(nonzero primitive NonZeroU128, NonZeroI128 => {usize, isize});
     bitwise!(nonzero primitive NonZeroUsize, NonZeroIsize => {u128, i128});
 
     bitwise!(nonzero nonzero NonZeroU128, NonZeroI128 => {NonZeroUsize, NonZeroIsize});

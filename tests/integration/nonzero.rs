@@ -18,6 +18,81 @@ fn nonzero_assumed_lossless() {
 }
 
 #[test]
+#[allow(
+    clippy::cast_sign_loss, clippy::float_cmp, 
+    clippy::cast_precision_loss, clippy::cast_possible_wrap
+)]
+fn nonzero_bitwise() {
+    // NonZero -> primitive
+    assert_eq!(NonZeroU8::new(7).unwrap().cast::<u8>().bitwise(), 7u8);
+    assert_eq!(NonZeroI8::new(-7).unwrap().cast::<u8>().bitwise(), -7i8 as u8);
+    assert_eq!(
+        NonZeroI64::new(i64::MIN).unwrap().cast::<f64>().bitwise(),
+        f64::from_ne_bytes(i64::MIN.to_ne_bytes())
+    );
+
+    assert_ne!(NonZeroI64::new(i64::MIN).unwrap().cast::<f64>().bitwise(), i64::MIN as f64);
+    
+    // NonZero -> NonZero
+    assert_eq!(
+        NonZeroU16::new(u16::MAX).unwrap().cast::<NonZeroI16>().bitwise(),
+        NonZeroI16::new(u16::MAX as i16).unwrap()
+    );
+}
+
+#[test]
+#[cfg(target_pointer_width = "16")]
+#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+fn nonzero_bitwise_16() {
+    assert_eq!(NonZeroUsize::new(4500).unwrap().cast::<i16>().bitwise(), 4500i16);
+    assert_eq!(NonZeroIsize::new(isize::MIN).unwrap().cast::<u16>().bitwise(), isize::MIN as u16);
+    assert_eq!(NonZeroU16::new(8080).unwrap().cast::<usize>().bitwise(), 8080usize);
+    assert_eq!(
+        NonZeroI16::new(-301).unwrap().cast::<NonZeroUsize>().bitwise().get(),
+        -301i16 as usize
+    );
+}
+
+#[test]
+#[cfg(target_pointer_width = "32")]
+#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+fn nonzero_bitwise_32() {
+    assert_eq!(NonZeroUsize::new(45000).unwrap().cast::<i32>().bitwise(), 45000i32);
+    assert_eq!(NonZeroIsize::new(isize::MIN).unwrap().cast::<u32>().bitwise(), isize::MIN as u32);
+    assert_eq!(NonZeroU32::new(8080).unwrap().cast::<usize>().bitwise(), 8080usize);
+    assert_eq!(
+        NonZeroI32::new(-301).unwrap().cast::<NonZeroUsize>().bitwise().get(),
+        -301i32 as usize
+    );
+}
+
+#[test]
+#[cfg(target_pointer_width = "64")]
+#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+fn nonzero_bitwise_64() {
+    assert_eq!(NonZeroUsize::new(45000).unwrap().cast::<i64>().bitwise(), 45000i64);
+    assert_eq!(NonZeroIsize::new(isize::MIN).unwrap().cast::<u64>().bitwise(), isize::MIN as u64);
+    assert_eq!(NonZeroU64::new(8080).unwrap().cast::<usize>().bitwise(), 8080usize);
+    assert_eq!(
+        NonZeroI64::new(-301).unwrap().cast::<NonZeroUsize>().bitwise().get(), 
+        -301i64 as usize
+    );
+}
+
+#[test]
+#[cfg(target_pointer_width = "128")]
+#[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+fn nonzero_bitwise_128() {
+    assert_eq!(NonZeroUsize::new(45000).unwrap().cast::<i128>().bitwise(), 45000i128);
+    assert_eq!(NonZeroIsize::new(isize::MIN).unwrap().cast::<u128>().bitwise(), isize::MIN as u128);
+    assert_eq!(NonZeroU128::new(8080).unwrap().cast::<usize>().bitwise(), 8080usize);
+    assert_eq!(
+        NonZeroI128::new(-301).unwrap().cast::<NonZeroUsize>().bitwise().get(),
+        -301i128 as usize
+    );
+}
+
+#[test]
 fn nonzero_closest() {
     // Narrowing: NonZero -> NonZero
     assert_eq!(NonZeroU16::new(3).unwrap().cast::<NonZeroU8>().closest().get(), 3u8);

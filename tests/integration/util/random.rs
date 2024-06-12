@@ -17,9 +17,8 @@ pub fn random_seed() -> u32 {
 
 /// Provides a hardcoded seed that can be manually edited, for use with no_std
 #[cfg(not(feature = "std"))]
-#[allow(clippy::cast_possible_truncation)]
 pub fn random_seed() -> u32 {
-    0
+    super::settings::RANDOM_SEED
 }
 
 /// Creates a new "random" number based on the given `seed` using a simple LCG. Note that this is a

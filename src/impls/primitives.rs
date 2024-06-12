@@ -192,7 +192,7 @@ macro_rules! cast {
     (lossless $first:ty, $($from:ty),+ => $to:ty) => {
         cast!(lossless $first => $to);
         $(cast!(lossless $from => $to));*;
-    };
+    }
 }
 
 // -- Macro-Generated Bulk Implementations: Portable -- //

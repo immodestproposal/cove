@@ -2,10 +2,11 @@
 
 use crate::base::CastImpl;
 use crate::bounds::{CastTo, CastToClosest, CastToLossless};
-use crate::casts::{AssumedLossless, Bitwise, Cast, Closest, Lossless, Lossy};
+use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
 use crate::errors::{LosslessCastError, LossyCastError};
 use core::fmt::{Debug, Display};
 
+// -- AssumedLossless --//
 // Blanket implementation for AssumedLossless applied to all LosslessCastErrors. We need to
 // implement this even though it is impossible to construct a LosslessCastError in order to 
 // trigger the blanket implementation for Results.
@@ -44,6 +45,7 @@ impl<T, Error: AssumedLossless<T>> AssumedLossless<T> for Result<T, Error> {
     }
 }
 
+// -- Closest -- //
 // Blanket implementation for Closest applied to all LosslessCastErrors. We need to
 // implement this even though it is impossible to construct a LosslessCastError in order to 
 // trigger the blanket implementation for Results.
@@ -63,6 +65,7 @@ impl<T, Error: Closest<T>> Closest<T> for Result<T, Error> {
     }
 }
 
+// -- Lossless -- //
 // Blanket implementation for Lossless applied to all LosslessCastErrors. We need to
 // implement this even though it is impossible to construct a LosslessCastError in order to 
 // trigger the blanket implementation for CastToLossless.
@@ -95,6 +98,7 @@ unsafe impl<T, Error: Lossless<T>> Lossless<T> for Result<T, Error> {
     }
 }
 
+// -- Lossy -- //
 // Blanket implementation for Lossy applied to all LosslessCastErrors. We need to
 // implement this even though it is impossible to construct a LosslessCastError in order to 
 // trigger the blanket implementation for Results.
@@ -122,6 +126,7 @@ impl<T, Error: Lossy<T>> Lossy<T> for Result<T, Error> {
     }
 }
 
+// -- Bounds -- //
 // Blanket implementations for bounds traits using std
 #[cfg(feature = "std")]
 #[allow(clippy::wildcard_imports)]

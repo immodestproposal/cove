@@ -64,12 +64,23 @@ fn cast_f64_to_i16(value: f64) {
     core::hint::black_box(value.cast::<i16>().assumed_lossless());
 }
 
+/// Bitwise i32 to u32 conversions for comparing generated ASM; use
+/// `cargo asm --example asm cast_bitwise_i32_to_u32` to compare. When comparing assembly, it may
+/// be helpful to comment out individual lines.
+#[inline(never)]
+#[allow(clippy::cast_sign_loss)]
+fn cast_bitwise_i32_to_u32(value: i32) {
+    core::hint::black_box(value as u32);
+    core::hint::black_box(value.cast::<u32>().bitwise());
+}
+
 /// Provides a basic driver for invoking the casts
 fn main() {
     cast_u32_to_u8(unpredictable());
     cast_u8_to_u32(unpredictable());
     cast_u64_to_f32(unpredictable());
     cast_f64_to_i16(unpredictable());
+    cast_bitwise_i32_to_u32(unpredictable());
 }
 
 /// Provides a value which cannot be known at compile time, to help disable optimizations

@@ -1,3 +1,9 @@
+//! ### Cast Errors
+//! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. See the 
+//! documentation in the [`errors`] module for details. Note that it is not necessary to interact 
+//! explicitly with these error types in many cases, such as when using the follow-on extension 
+//! traits; thus, they are not included in the prelude.
+
 //! Provides error types returned from [`Cast::cast`](crate::casts::Cast) for casts provided by
 //! cove
 //! 

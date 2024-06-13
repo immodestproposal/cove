@@ -2,6 +2,107 @@
 //!
 //! See the [`crate documentation`](crate) for an overview, or jump right in with the [`Cast`]
 //! trait.
+//!
+//! ## Usage
+//! Cove provides a [`prelude`] module to assist with importing the requisite extension traits.
+//! Most applications of cove will not require `use`ing anything more.
+//!
+//! All cove casts begin with a call to [`Cast::cast`](casts::Cast::cast):
+//! ```
+//! use cove::prelude::*;
+//!
+//! // Turbofish disambiguation of the target type is required in this example, but not
+//! // necessarily in other cases.
+//! assert_eq!(10u32.cast::<i32>()?, 10i32);
+//! # Ok::<(), cove::errors::LossyCastError<u32, i32>>(())
+//! ```
+//! Just as with [`TryFrom`]/[`TryInto`], this basic usage returns a [`Result`] which may be
+//! interrogated like any [`Result`]. While the returned error is generally a little more useful
+//! than that returned by [`TryFrom`]/[`TryInto`], the full value of the cove casts is not realized
+//! until the next step: using the follow-on extension traits.
+//! 
+//! ### Supported Casts
+//! Not all follow-on cast types make sense for all numerical conversions; attempting to use an
+//! unsupported cast will result in a compilation error. Refer to the documentation of the
+//! individual casts for details, but as quick rules of thumb:
+//!
+//! * [`Cast`](casts::Cast) and [`Closest`](casts::Closest) are supported for all casts between all
+//!     primitive numerical types as well as the NonZero* family of non-zero integers from
+//!     [`core::num`].
+//! * [`Lossy`](casts::Lossy) and [`AssumedLossless`](casts::AssumedLossless) are supported
+//!     whenever the target type is a primitive.
+//! * [`Lossless`](casts::Lossless) is supported whenever [`From`]/[`Into`] is supported as well
+//!     as to/from [`usize`] / [`isize`] / [`NonZeroUsize`](core::num::NonZeroUsize) /
+//!     [`NonZeroIsize`](core::num::NonZeroIsize) when this is guaranteed lossless on the target
+//!     platform.
+//! * [`Bitwise`](casts::Bitwise) is supported whenever the source and target types are the same 
+//!     size and [`Lossy`](casts::Lossy) or [`Lossless`](casts::Lossless) is supported.
+//! 
+//! ### Follow-on Extension Traits
+//! Cove defines a number of extension traits which are implemented for the [`Result`] returned
+//! from calling [`Cast::cast`](casts::Cast::cast) and well as for its contained error types. A
+//! common cove usage, therefore, involves calling [`Cast::cast`](casts::Cast::cast) and then
+//! immediately calling one of the follow-on extension traits on its [`Result`]:
+//! ```
+//! use cove::prelude::*;
+//!
+//! assert_eq!(8u64.cast::<u16>().assumed_lossless(), 8u16);
+//! assert_eq!((-8i64).cast::<u16>().closest(), 0u16);
+//! ```
+//!
+//! An overview of the available follow-on extension traits is provided here; see the
+//! documentation for each trait for more in-depth details and semantics:
+//! * [`Lossless`](casts::Lossless): for compile-time lossless casts based on types alone (e.g.
+//! widening conversions)
+//!     * Will not compile for casts which could be lossy based on their types
+//!     * Does not guarantee portability; compiling on a target platform does not imply compiling on
+//!         all platforms
+//!     * Akin to [`From`]/[`Into`] but trades off portability guarantees for a broader scope (e.g.
+//!         support for [`usize`]/[`isize`])
+//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
+//! * [`Lossy`](casts::Lossy): for casts where lossiness is acceptable with no general guarantees
+//!     on the accuracy
+//!     * Most akin to the `as` keyword but self-documents the intent and works in generic contexts
+//!     * Very situational: consider one of the other extension traits instead
+//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
+//! * [`AssumedLossless`](casts::AssumedLossless): for casts asserted to be lossless at runtime
+//!     * Will panic in dev builds if the cast is lossy; will just be silently lossy in release
+//!     * Most akin to [`Result::unwrap_unchecked`] but offers an alternative to unsafeness
+//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
+//! * [`Closest`](casts::Closest): for casts which can be lossy provided they get as close as the
+//!     types allow
+//!     * Yields the closest possible cast, which might not be very close at all:
+//!     ```
+//!     # use cove::prelude::*;
+//!     assert_eq!(1_000_000_000u64.cast::<u8>().closest(), 255u8);
+//!     ```
+//!     * **NOT** zero-overhead: generally involves at least one branch over the `as` keyword
+//! * [`Bitwise`](casts::Bitwise): for casts which preserve the bits rather than numerical value
+//!     * Most akin to [`core::mem::transmute`], but isn't unsafe
+//!     * Requires source and target types to be the same size
+//!     * Zero-overhead: generally optimizes to the same assembly as [`core::mem::transmute`] 
+//!
+//! ### Guidelines
+//! It might seem challenging to determine which type of cast to use in which circumstances.
+//! While one size rarely fits all in software, here are some quick guidelines which might be
+//! useful:
+//!
+//! * If [`From`]/[`Into`] are provided for your use case, use those instead of any of cove's casts
+//! * Otherwise, if you are writing an interface to be consumed by a third party:
+//!     * Consider whether you really want any form of fallible casting in the interface; it
+//!         might be better to just take the target type
+//!     * If possible, favor [`TryFrom`]/[`TryInto`] over any of cove's casts to avoid introducing
+//!         interface dependencies
+//! * Otherwise, favor cove's casts over [`TryFrom`]/[`TryInto`] or the `as` keyword:
+//!     * Favor [`Lossless`](casts::Lossless) if provided for your use case and you'd rather
+//!         detect portability errors at compile time than runtime
+//!     * Favor [`AssumedLossless`](casts::AssumedLossless) if confident the cast will always be
+//!         lossless
+//!     * Favor [`Cast`](casts::Cast) with error handling if only lossless casts should proceed
+//!     * Favor [`Closest`](casts::Closest) when best-effort lossiness is acceptable
+//!     * Use [`Lossy`](casts::Lossy) in niche circumstances; favor this over the `as` keyword
+//!         * Exception: in some const contexts it may be necessary to use the `as` keyword,
+//!              since const trait support is limited
 
 use crate::base::CastImpl;
 

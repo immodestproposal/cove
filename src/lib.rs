@@ -15,11 +15,12 @@
 //! * **correctness**: suspicious casts via `as` can be reduced or eliminated altogether
 //! * **performance**: in release builds, cove's casts generally compile down to the same
 //! assembly as manual implementations
+//! * **independence**: no required dependencies and the only optional dependency is `std`
 //!
 //! ## Quick Usage
 //! ```
 //! use cove::prelude::*;
-//! use core::num::{NonZeroI8, NonZeroI32};
+//! use core::num::{NonZeroI8, NonZeroI32, NonZeroI64};
 //!
 //! // Check whether a cast is lossy at runtime
 //! assert_eq!(8i16.cast::<u8>()?, 8u8);
@@ -47,11 +48,19 @@
 //! // ...but if the unsafeness makes you uncomfortable you might prefer cove's assumed_lossless,
 //! // which will use a debug_assert instead of unsafe (and just risk lossiness in release builds):
 //! assert_eq!(90u32.cast::<u8>().assumed_lossless(), 90);
-//!
+//! 
+//! // If desired, you can instead preserve bits (rather than mathematical value) across a cast:
+//! assert_eq!(NonZeroI64::new(-1).unwrap().cast::<u64>().bitwise(), u64::MAX);
+//! assert_eq!(10f32.cast::<u32>().bitwise(), 1_092_616_192u32);
+//! 
 //! # Ok::<(), cove::errors::LossyCastError<i16, u8>>(())
 //! ```
-#![cfg_attr(target_pointer_width = "64", doc = "```")]
-#![cfg_attr(not(target_pointer_width = "64"), doc = "```compile_fail")]
+
+#![cfg_attr(any(target_pointer_width = "64", target_pointer_width = "128"), doc = "```")]
+#![cfg_attr(
+    not(any(target_pointer_width = "64", target_pointer_width = "128")), 
+    doc = "```compile_fail"
+)]
 //! use cove::prelude::*;
 //! use core::num::{NonZeroU16, NonZeroU64};
 //!
@@ -64,117 +73,7 @@
 //! assert_eq!(31u64.cast::<usize>().lossless(), 31usize);
 //! ```
 
-//! ## Motivation
-//! Given the existence of [`From`]/[`Into`]/[`TryFrom`]/[`TryInto`] and the `as` keyword, it is
-//! natural to ask what value additional numeric casting functionality could provide. The
-//! motivation is simple: the existing mechanisms, while perfectly serviceable, are
-//! general-purpose tools which do not align precisely to the use cases for numeric casts. This
-//! creates an opportunity for improvements; though each improvement is minor, in codebases rife
-//! with casts they can collectively have an outsized effect.
-//!
-//! ### [`From`]/[`Into`]
-//! The [`From`]/[`Into`] traits are implemented for numeric casts which are guaranteed to be
-//! lossless on all supported platforms based on their types alone. This is a strong guarantee,
-//! and if these traits fit your use case you should think hard before picking anything else,
-//! including cove's casts. However, such a strong guarantee naturally comes with a limited scope;
-//! for the many use cases which do not conform, other casting mechanisms are required.
-//!
-//! ### [`TryFrom`]/[`TryInto`]
-//! The [`TryFrom`]/[`TryInto`] traits are provided for numeric casts which might be lossy, to
-//! allow for testing of this lossiness at runtime. This covers many of the use cases unaddressed
-//! by [`From`]/[`Into`], but not all. For example:
-//!
-//! * Some conversions which might be desired are not provided, such as from floating points to
-//!     integers
-//! * If the cast is lossy but you want to use whatever it produces anyway, [`TryFrom`]/[`TryInto`]
-//!     can't help
-//! * If the cast is lossy but you want as close as it can get, [`TryFrom`]/[`TryInto`] can't help
-//! * If the cast is lossy and you want good error messages, [`TryFrom`]/[`TryInto`]'s errors tend
-//!     to disappoint
-//! * If you know a cast is lossless, you are stuck with suboptimal options:
-//!     * Risk the unsafeness of [`unwrap_unchecked`](Result::unwrap_unchecked)
-//!     * Absorb the performance cost of [`unwrap`](Result::unwrap)
-//!     * Absorb the performance cost and polluted interface implied by returning a [`Result`]
-//!
-//! ### `as` Keyword
-//! The use cases not covered by [`From`]/[`Into`]/[`TryFrom`]/[`TryInto`] are generally left to the
-//! `as` keyword. This is unfortunately a fairly blunt instrument which requires paying careful
-//! attention to the semantics of numeric casts to ensure correct use. For this reason, usage of
-//! `as` for numeric casts often triggers complaints from linters, such as when using clippy in
-//! pedantic mode.
-//!
-//! Since `as` is not a trait it is quite difficult to use it in generic contexts. Moreover, due to
-//! being overloaded for other type casts it can be more challenging to search its usages for
-//! possible sources of numeric cast bugs. In general it is a good idea to avoid the `as` keyword
-//! for numeric casts, at least in the presence of better options. This crate aims to provide those
-//! better options.
-//!
-//! ## Usage
-//! Cove provides a [`prelude`] module to assist with importing the requisite extension traits.
-//! Most applications of cove will not require `use`ing anything more.
-//!
-//! All cove casts begin with a call to [`Cast::cast`](casts::Cast::cast):
-//! ```
-//! use cove::prelude::*;
-//!
-//! // Turbofish disambiguation of the target type is required in this example, but not
-//! // necessarily in other cases.
-//! assert_eq!(10u32.cast::<i32>()?, 10i32);
-//! # Ok::<(), cove::errors::LossyCastError<u32, i32>>(())
-//! ```
-//! Just as with [`TryFrom`]/[`TryInto`], this basic usage returns a [`Result`] which may be
-//! interrogated like any [`Result`]. While the returned error is generally a little more useful
-//! than that returned by [`TryFrom`]/[`TryInto`], the full value of the cove casts is not realized
-//! until the next step: using the follow-on extension traits.
-//!
-//! ### Follow-on Extension Traits
-//! Cove defines a number of extension traits which are implemented for the [`Result`] returned
-//! from calling [`Cast::cast`](casts::Cast::cast) and well as for its contained error types. A
-//! common cove usage, therefore, involves calling [`Cast::cast`](casts::Cast::cast) and then
-//! immediately calling one of the follow-on extension traits on its [`Result`]:
-//! ```
-//! use cove::prelude::*;
-//!
-//! assert_eq!(8u64.cast::<u16>().assumed_lossless(), 8u16);
-//! assert_eq!((-8i64).cast::<u16>().closest(), 0u16);
-//! ```
-//!
-//! An overview of the available follow-on extension traits is provided here; see the
-//! documentation for each trait for more in-depth details and semantics:
-//! * [`Lossless`](casts::Lossless): for compile-time lossless casts based on types alone (e.g.
-//! widening conversions)
-//!     * Will not compile for casts which could be lossy based on their types
-//!     * Does not guarantee portability; compiling on a target platform does not imply compiling on
-//!         all platforms
-//!     * Akin to [`From`]/[`Into`] but trades off portability guarantees for a broader scope (e.g.
-//!         support for [`usize`]/[`isize`])
-//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
-//! * [`Lossy`](casts::Lossy): for casts where lossiness is acceptable with no general guarantees
-//!     on the accuracy
-//!     * Most akin to the `as` keyword but self-documents the intent and works in generic contexts
-//!     * Very situational: consider one of the other extension traits instead
-//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
-//! * [`AssumedLossless`](casts::AssumedLossless): for casts asserted to be lossless at runtime
-//!     * Will panic in dev builds if the cast is lossy; will just be silently lossy in release
-//!         builds
-//!     * Most akin to [`Result::unwrap_unchecked`] but offers an alternative to unsafeness
-//!     * Zero-overhead: generally optimizes to the same assembly as the `as` keyword
-//! * [`Closest`](casts::Closest): for casts which can be lossy provided they get as close as the
-//!     types allow
-//!     * Yields the closest possible cast, which might not be very close at all:
-//!     ```
-//!     # use cove::prelude::*;
-//!     assert_eq!(1_000_000_000u64.cast::<u8>().closest(), 255u8);
-//!     ```
-//!     * **NOT** zero-overhead: generally involves at least one branch over the `as` keyword
-//!
-//! ### Cast Errors
-//! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. See the 
-//! documentation in the [`errors`] module for details. Note that it is not necessary to interact 
-//! explicitly with these error types in many cases, such as when using the follow-on extension 
-//! traits; thus, they are not included in the prelude.
-//!
-//! ### Features
+//! ## Features
 //! Cove supports one feature, `std`, which is included in the default features. Enabling this
 //! feature (or rather, failing to disable it) enables support for the Rust standard library.
 //! If this is disabled, cove depends only on the Rust core library.
@@ -184,87 +83,14 @@
 //! implementations are controlled by this feature, as the rust standard library allows for
 //! optimizations via intrinsics not available in stable [`core`].
 //!
-//! ### Supported Casts
-//! Not all follow-on cast types make sense for all numerical conversions; attempting to use an
-//! unsupported cast will result in a compilation error. Refer to the documentation of the
-//! individual casts for details, but as quick rules of thumb:
-//!
-//! * [`Cast`](casts::Cast) and [`Closest`](casts::Closest) are supported for all casts between all
-//!     primitive numerical types as well as the NonZero* family of non-zero integers from
-//!     [`core::num`].
-//! * [`Lossy`](casts::Lossy) and [`AssumedLossless`](casts::AssumedLossless) are supported
-//!     whenever the target type is a primitive.
-//! * [`Lossless`](casts::Lossless) is supported whenever [`From`]/[`Into`] is supported as well
-//!     as to/from [`usize`] / [`isize`] / [`NonZeroUsize`](core::num::NonZeroUsize) /
-//!     [`NonZeroIsize`](core::num::NonZeroIsize) when this is guaranteed lossless on the target
-//!     platform.
-//!
-//! ### Extending Support
-//! Extending cove's casts to new types involves implementing [`base::CastImpl`]; see the
-//! documentation for [`base`] for more details.
+//! ## Links
 //! 
-//! ### Generic Bounds
-//! As with all traits, Cove's casting traits may be used as bounds on generic parameters to a 
-//! function. The syntax for this can be troublesome; so Cove provides convenience subtraits in the
-//! [`bounds`] module to simplify this use case. 
-//!
-//! ### Guidelines
-//! It might seem challenging to determine which type of cast to use in which circumstances.
-//! While one size rarely fits all in software, here are some quick guidelines which might be
-//! useful:
-//!
-//! * If [`From`]/[`Into`] are provided for your use case, use those instead of any of cove's casts
-//! * Otherwise, if you are writing an interface to be consumed by a third party:
-//!     * Consider whether you really want any form of fallible casting in the interface; it
-//!         might be better to just take the target type
-//!     * If possible, favor [`TryFrom`]/[`TryInto`] over any of cove's casts to avoid introducing
-//!         interface dependencies
-//! * Otherwise, favor cove's casts over [`TryFrom`]/[`TryInto`] or the `as` keyword:
-//!     * Favor [`Lossless`](casts::Lossless) if provided for your use case and you'd rather
-//!         detect portability errors at compile time than runtime
-//!     * Favor [`AssumedLossless`](casts::AssumedLossless) if confident the cast will always be
-//!         lossless
-//!     * Favor [`Cast`](casts::Cast) with error handling if only lossless casts should proceed
-//!     * Favor [`Closest`](casts::Closest) when best-effort lossiness is acceptable
-//!     * Use [`Lossy`](casts::Lossy) in niche circumstances; favor this over the `as` keyword
-//!         * Exception: in some const contexts it may be necessary to use the `as` keyword,
-//!              since const trait support is limited
-//!
-//! ## Performance
-//! Cove's primary mission is to improve the casting situation by replacing as many use cases for
-//! the `as` keyword as possible. Since one of the reasons to use `as` is performance, cove
-//! strives to provide implementations which can compete on runtime speed, so that there is no
-//! need for the programmer to choose between safer, self-documenting casts and speedy ones.
-//!
-//! Several of the casts provided in this crate can be expected to optimize to the same
-//! assembly as the `as` keyword in release builds. For example, consider this function:
-//!
-//! ```
-//! #[inline(never)]
-//! fn cast_u32_to_u8(value: u32) {
-//!     // core::hint::black_box(value as u8);
-//!     // core::hint::black_box(value.cast::<u8>().lossy());
-//!     // core::hint::black_box(value.cast::<u8>().assumed_lossless());
-//! }
-//! ```
-//!
-//! Commenting in each of these lines in turn and compiling the function in release with Rust
-//! 1.72.0 on stable-x86_64-pc-windows-msvc yields the exact same assembly for all three:
-//!
-//! ```ignore
-//! push rax
-//! mov byte ptr [rsp + 7], cl
-//! lea rax, [rsp + 7]
-//! pop rax
-//! ret
-//! ```
-//!
-//! Optimizer results are subject to variation by version and platform and can never be completely
-//! relied upon, but the core point remains: there is no need to a priori favor `as` over cove's
-//! casts strictly for performance.
-//!
-//! Consult the documentation on each casting trait for performance notes. Also refer to `asm.rs`
-//! in cove's `examples` directory for assistance with testing assembly generation for your platform.
+//! * Read about the [`casts`] available in cove
+//! * Read about generic [`bounds`] for cove's casts
+//! * Read about [`extending`](base) cove's casts to new types
+//! * Read about the [`motivation`](docs::motivation) behind cove
+//! * Read about [`performance`](docs::performance) considerations when using cove
+//! * Read about [`portability`](docs::portability) considerations when using cove
 
 // TODO: documentation:
 // TODO:    * explain why no CastToBitwise trait and offer workaround
@@ -276,6 +102,7 @@
 // TODO: fill out cargo.toml more (badges, keywords, etc)
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 
+mod docs;
 mod doctests;
 mod impls;
 

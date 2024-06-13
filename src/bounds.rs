@@ -1,3 +1,8 @@
+//! ### Generic Bounds
+//! As with all traits, Cove's casting traits may be used as bounds on generic parameters to a 
+//! function. The syntax for this can be troublesome; so Cove provides convenience subtraits in the
+//! [`bounds`] module to simplify this use case. 
+
 //! Provides convenience traits for bounding generic types
 //!
 //! Cove's casting traits are purpose-built for easy syntax when performing casts and follow-on 
@@ -61,7 +66,6 @@ use core::fmt::{Debug, Display};
 
 #[cfg(feature = "std")]
 use std::error::Error;
-
 
 /// Provides a convenience subtrait for use with bounding generic function parameters
 /// 

@@ -102,12 +102,12 @@
 // TODO: fill out cargo.toml more (badges, keywords, etc)
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 
-mod docs;
 mod doctests;
 mod impls;
 
 pub mod base;
 pub mod bounds;
 pub mod casts;
+pub mod docs;
 pub mod errors;
 pub mod prelude;

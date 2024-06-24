@@ -74,8 +74,8 @@
 //! ## Differences
 //! The first, most obvious difference between the crates is mileage: `conv` has been around much 
 //! longer than `cove` and seen far more usage. That said, it never released a 1.x.x version, 
-//! meaning it is technically an unstable API from a semver perspective. Given its adoption, this
-//! is probably a non-issue in practice.
+//! meaning it is technically an unstable API from a semver perspective. Given its wide adoption, 
+//! this is probably a non-issue in practice.
 //! 
 //! While `conv` has fairly minimal dependencies, cove has none at all, even including 
 //! dev-dependencies and build-dependencies. Both can optionally depend on `std`. 
@@ -92,9 +92,7 @@
 //! providing options to round towards zero, towards positive or negative infinity, towards the 
 //! closest number, or to use the default scheme (which will generally be similar to rounding 
 //! towards zero). By contrast, cove offers the default scheme (i.e. rounding towards zero) and
-//! towards the closest number, but not rounding towards positive or negative infinity. These 
-//! were left out for the simple reason that the author has never seen a use case for them, though 
-//! presumably such cases exist. Perhaps they will be added to a future version of cove.
+//! towards the closest number, but not rounding towards positive or negative infinity.
 //! 
 //! Unlike `conv`, cove offers support for bitwise casting, which focuses on the bit representation 
 //! of numerical types rather than their mathematical value. This has applications in FFI as well
@@ -149,7 +147,7 @@
 //! 
 //! Cove's design made an effort to always lead with a call to `cast` for consistency and apply 
 //! transforms to the result via follow-on extension traits. A similar technique is used in `conv`, 
-//! but since there are multiple initial calls possible there end up being three times more 
+//! but since there are multiple initial calls possible there end up being many times more 
 //! possible combinations to mentally manage than with cove.
 //!
 //! ### Bounding Syntax
@@ -181,7 +179,7 @@
 //! ### Errors
 //! The two crates took similar but somewhat different approaches to errors. The `conv` crate 
 //! supports three times as many error types as cove, including several enum types which logically 
-//! contain several more subtypes of errors. This allows consuming code to take different actions 
+//! contain even more subtypes of errors. This allows consuming code to take different actions 
 //! based on the type -- for example, if it needed to do something different for a positive overflow 
 //! as opposed to a negative overflow. 
 //! 
@@ -198,7 +196,7 @@
 //! * **cove:** `LossyCastError { from: 16777217, to: 16777216.0 }`
 //! 
 //! # Overall
-//! So what to use: cove, `conv`, or just the basic features of `core`? As with everything in 
+//! So which to use: cove, `conv`, or just the basic features of `core`? As with everything in 
 //! software, there is no substitute for understanding the tradeoffs and how they apply to your 
 //! particular situation. As a rule of thumb, the author recommends using either crate over the 
 //! raw functionality of `core` unless you can get away purely with [`From`]/[`Into`]. Use `conv`

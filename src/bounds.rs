@@ -1,9 +1,4 @@
-//! ### Generic Bounds
-//! As with all traits, Cove's casting traits may be used as bounds on generic parameters to a 
-//! function. The syntax for this can be troublesome; so Cove provides convenience subtraits in the
-//! [`bounds`] module to simplify this use case. 
-
-//! Provides convenience traits for bounding generic types
+//! Provides convenience traits for specifying generic casting bounds
 //!
 //! Cove's casting traits are purpose-built for easy syntax when performing casts and follow-on 
 //! casts. A side effect of optimizing for these use cases is less convenient syntax when 
@@ -23,8 +18,9 @@
 //! ```
 //! 
 //! The function signature is verbose and awkward, and requires an undesirable level of familiarity 
-//! with Cove's implementation. Now compare the above example with this one, rewritten to use the 
-//! bounding trait [`CastTo`]:
+//! with cove's implementation. To alleviate this issue, cove provides specialized subtraits for 
+//! use as generic function bounds. Consider the above example rewritten to use the bounding trait 
+//! [`CastTo`]:
 //! ```
 //! use cove::bounds::CastTo;
 //! use cove::prelude::*;
@@ -35,14 +31,11 @@
 //!
 //! assert_eq!(foo(38i128), 38f32);
 //! ``` 
-//! 
-//! That syntactic cleanup is the goal of this module. Note that using bounding traits is not 
-//! expected to be a common use case and thus these traits are not included in Cove's prelude.
-//! 
+//!
 //! # Support
-//! The different bounding trait cover different use cases and supported types, according to the 
-//! tables. Note that the supported types are those provided out-of-the-box by Cove, but external 
-//! types may also be supported (see [`CastImpl`] for details on extending Cove support).
+//! The different bounding traits cover different use cases and supported types, according to the 
+//! tables below. Note that the supported types are those provided out-of-the-box by cove, but 
+//! [`external types`](crate::base) may also be supported.
 //! 
 //! Target types supported by each bounding trait:
 //! 
@@ -59,6 +52,8 @@
 //! | [`CastTo`]         | ✔       | ✔                   | ✔          | ✔         |              | 
 //! | [`CastToClosest`]  | ✔       |                     | ✔           |           |              |
 //! | [`CastToLossless`] | ✔       |                     |             |           | ✔            |
+//!
+//! Note that [`Bitwise`](crate::casts::Bitwise) is not supported by any of the bounding traits.
 
 use crate::base::CastImpl;
 use crate::casts::{AssumedLossless, Cast, Closest, Lossless, Lossy};
@@ -206,7 +201,7 @@ pub trait CastToClosest<T> : Cast + CastImpl<T, Error = <Self as CastToClosest<T
 /// Provides a convenience subtrait for use with bounding generic function parameters
 ///
 /// This bounding trait only supports casts which are guaranteed to be lossless at compilation time 
-/// as deduced from the types alone, such as i64 -> isize on a 64-bit platform or u8 -> u32 on any 
+/// as deduced from the types alone, such as i64 → isize on a 64-bit platform or u8 → u32 on any 
 /// platform. This is powerful when applicable but ultimately limited in scope; if your use case 
 /// does not match consider using [`CastTo`] or [`CastToClosest`] instead.
 ///

@@ -1,9 +1,3 @@
-//! ### Cast Errors
-//! Cove's [`Cast`](casts::Cast) trait uses an associated error type for flexibility. See the 
-//! documentation in the [`errors`] module for details. Note that it is not necessary to interact 
-//! explicitly with these error types in many cases, such as when using the follow-on extension 
-//! traits; thus, they are not included in the prelude.
-
 //! Provides error types returned from [`Cast::cast`](crate::casts::Cast) for casts provided by
 //! cove
 //! 
@@ -25,8 +19,7 @@
 //! * [`FailedCastError`]: for lossy casts which are unable to represent
 //!     the lossy value as the target type
 //!     * Used for certain `NonZero*` casts, where representing e.g.
-//!         [`NonZeroUsize`](core::num::NonZeroUsize) in the error type could invoke undefined
-//!         behavior
+//!         [`NonZeroUsize`](core::num::NonZeroUsize) in the error could invoke undefined behavior
 //!     * Allows for retrieving the origin (but not target) value via the `from` member field:
 //!     ```
 //!     # use cove::prelude::*;
@@ -39,7 +32,7 @@
 use core::fmt::{Debug, Display, Formatter};
 use core::marker::PhantomData;
 
-/// Indicates that a cast between numeric types could not possibly have lost data, deduced from 
+/// Indicates that a cast between numeric types could not possibly have lost data, as deduced from 
 /// the types alone.
 /// 
 /// This is used for cove's casts which cannot lose data on the target platform, even if they 
@@ -65,8 +58,7 @@ std::error::Error for LosslessCastError<CastFrom, CastTo> {}
 
 /// Indicates that a cast between numeric types lost data.
 ///
-/// This is used for most of cove's casts, and enables usage of various follow-on traits; see the
-/// [`crate documentation`](crate) for an overview.
+/// This is used for a majority of cove's casts.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct LossyCastError<CastFrom, CastTo> {
     /// The original value before the cast
@@ -95,10 +87,9 @@ std::error::Error for LossyCastError<CastFrom, CastTo> {}
 /// Indicates that a cast between numeric types would have lost data but could not even create the
 /// lossy value.
 ///
-/// This is generally used for casts from primitives to the `NonZero*` family in
-/// [`core::num`], as there is no way to create the associated `NonZero*` in the face of a `0` value
-/// without invoking undefined behavior. This error enables usage of various follow-on traits; see
-/// the [`crate documentation`](crate) for an overview.
+/// This is generally used for casts from primitives to the `NonZero*` family in [`core::num`], as 
+/// there is no way to create the associated `NonZero*` in the face of a `0` value without invoking 
+/// undefined behavior.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct FailedCastError<CastFrom, CastTo> {
     /// The original value before the cast

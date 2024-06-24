@@ -7,7 +7,7 @@
 // community as a whole.
 #![allow(clippy::match_bool)]
 
-//! # Cove: Casts Of Varying Elegance
+//! # Cove: **C**asts **O**f **V**arying **E**legance
 //! A collection of extension traits to improve the safety and maintainability of numerical casts.
 //!
 //! Cove's primary goals are:
@@ -85,20 +85,16 @@
 //!
 //! ## Links
 //! 
-//! * Read about the [`casts`] available in cove
+//! * Read about how to use cove's [`casts`]
 //! * Read about generic [`bounds`] for cove's casts
 //! * Read about [`extending`](base) cove's casts to new types
 //! * Read about the [`motivation`](docs::motivation) behind cove
 //! * Read about [`performance`](docs::performance) considerations when using cove
-//! * Read about [`portability`](docs::portability) considerations when using cove
+//! * Read about [`testing`](docs::testing) considerations with cove
 
 // TODO: documentation:
-// TODO:    * explain why no CastToBitwise trait and offer workaround
-// TODO:    * make sure there is a test for each specific guarantee (e.g. 0 -> 1 for NonZero)
-// TODO:    * refactor docs, have mods specifically to add docs (like motivation/design rationale)
 // TODO:    * re-read all docs for correctness and completeness, especially since things were added
 // TODO:    * readme
-// TODO: make sure all casts documented as zero-overhead have been covered in the asm example
 // TODO: fill out cargo.toml more (badges, keywords, etc)
 // TODO: solicit feedback, possibly take feedback, publish a 1.0
 

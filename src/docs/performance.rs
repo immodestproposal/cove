@@ -1,9 +1,10 @@
-//!
-//! ## Performance
+//! Provides insight on the runtime overhead of cove casts
+//! 
+//! # Performance
 //! Cove's primary mission is to improve the casting situation by replacing as many use cases for
-//! the `as` keyword as possible. Since one of the reasons to use `as` is performance, cove
-//! strives to provide implementations which can compete on runtime speed, so that there is no
-//! need for the programmer to choose between safer, self-documenting casts and speedy ones.
+//! the `as` keyword as possible. Since one of the reasons to use `as` is performance, cove strives
+//! to provide implementations which can compete on runtime speed, so that there is no need for the 
+//! programmer to choose between safer, self-documenting casts and speedy ones.
 //!
 //! Several of the casts provided in this crate can be expected to optimize to the same
 //! assembly as the `as` keyword in release builds. For example, consider this function:
@@ -33,4 +34,5 @@
 //! casts strictly for performance.
 //!
 //! Consult the documentation on each casting trait for performance notes. Also refer to `asm.rs`
-//! in cove's `examples` directory for assistance with testing assembly generation for your platform.
+//! in cove's `examples` directory for assistance with testing assembly generation for your 
+//! platform.

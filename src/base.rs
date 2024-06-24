@@ -31,12 +31,13 @@
 //! # Ok::<(), Box<cove::errors::LossyCastError<u16, u8>>>(())
 //! ```
 //!
-//! Implement [`CastImpl`] to extend casting functionality to new types, and the follow-on extension
-//! traits ([`AssumedLossless`](crate::casts::AssumedLossless) /
+//! Implement [`CastImpl`] to extend casting functionality to new types, then implement the 
+//! follow-on extension traits ([`AssumedLossless`](crate::casts::AssumedLossless) /
 //! [`Closest`](crate::casts::Closest) / [`Lossless`](crate::casts::Lossless) /
-//! [`Lossy`](crate::casts::Lossy)) as appropriate. Upon implementing [`CastImpl`], be sure to also
-//! implement [`Cast`](crate::casts::Cast) using the default implementation; essentially, just mark
-//! the type as implementing [`Cast`](crate::casts::Cast).
+//! [`Lossy`](crate::casts::Lossy) / [`Bitwise`](crate::casts::Bitwise) as appropriate. Upon 
+//! implementing [`CastImpl`], be sure to also implement [`Cast`](crate::casts::Cast) using the 
+//! default implementation; essentially, just mark the type as implementing 
+//! [`Cast`](crate::casts::Cast).
 //!
 //! **Example of extending casting functionality:**
 //!
@@ -77,7 +78,7 @@
 //! assert_eq!(Wrapper(8).cast::<u8>().assumed_lossless(), 8u8);
 //! assert_eq!(Wrapper(300).cast::<u8>().lossy(), 44u8);
 //!
-//! // If Closest or Lossless is desired it may be necessary to use a different error type;
+//! // If Bitwise, Closest or Lossless is desired it may be necessary to use a different error type;
 //! // otherwise it will be difficult to implement those extension traits due to Rust's orphaning
 //! // rules. To leverage Cove's blanket implementations, be sure to implement the follow-on 
 //! // extension traits on the error type.
@@ -90,15 +91,15 @@
 pub trait CastImpl<T> {
     /// Specifies the error type returned from [`cast_impl`](CastImpl::cast_impl) and by
     /// extension from [`Cast::cast`](crate::casts::Cast::cast). Note that some blanket
-    /// implementations for the follow-on extension traits may apply if this is one of the error
-    /// types provided by this crate ([`LossyCastError`](crate::errors::LossyCastError) /
-    /// [`FailedCastError`](crate::errors::FailedCastError)).
+    /// implementations for the follow-on extension traits may apply if this is one of the [`error
+    /// types`](crate::errors) provided by this crate.
     type Error;
 
     /// Casts `self` to type `T`; see [`Cast::cast`](crate::casts::Cast::cast) for details and
     /// invariants to uphold.
     ///
     /// # Errors
-    /// Returns `Err` if the cast is lossy; that is, if the casted value is not equal to `self`
+    /// Returns `Err` if the cast is lossy; that is, if the casted value is not numerically equal
+    /// to `self`
     fn cast_impl(self) -> Result<T, Self::Error>;
 }

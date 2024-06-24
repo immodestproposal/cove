@@ -1,10 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 
-// This is allowed across the board because clippy is incorrect; matching on bool is more 
-// compact and easier to read than if/else. Obviously this is subjective, but for exactly 
-// that reason clippy shouldn't be trying to force its authors' personal preferences on the 
-// community as a whole.
+// This is allowed across the board because matching on bool is more compact and easier to read than 
+// if/else. Obviously this is subjective, but that is exactly why this lint should not exist.
 #![allow(clippy::match_bool)]
 
 //! # Cove: **C**asts **O**f **V**arying **E**legance
@@ -91,12 +89,6 @@
 //! * Read about the [`motivation`](docs::motivation) behind cove
 //! * Read about [`performance`](docs::performance) considerations when using cove
 //! * Read about [`testing`](docs::testing) considerations with cove
-
-// TODO: documentation:
-// TODO:    * re-read all docs for correctness and completeness, especially since things were added
-// TODO:    * readme
-// TODO: fill out cargo.toml more (badges, keywords, etc)
-// TODO: solicit feedback, possibly take feedback, publish a 1.0
 
 mod doctests;
 mod impls;

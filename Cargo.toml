@@ -1,12 +1,17 @@
 [package]
 name = "cove"
-version = "0.8.0"
+version = "0.9.0"
+authors = ["immodestproposal"]
 edition = "2021"
+rust-version = "1.45"
 license = "MIT"
 repository = "https://github.com/immodestproposal/cove"
 description = """
 Casts Of Varying Elegance (COVE): extension traits for casting numerical types
 """
+documentation = "https://docs.rs/cove/latest/cove/"
+keywords = ["from", "into", "cast", "conversion", "no_std"]
+categories = ["encoding", "mathematics", "no-std", "no-std::no-alloc", "rust-patterns"]
 
 [features]
 default = ["std"]

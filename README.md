@@ -16,11 +16,11 @@
 
 Provides a collection of extension traits to improve the safety and maintainability of numerical casts.
 Cove's primary goals are:
-* **clarity**: the programmer's intention for a cast is clear from the name
-* **correctness**: suspicious casts via `as` can be reduced or eliminated altogether
-* **performance**: in release builds, cove's casts generally compile down to the same
+* **Clarity**: the programmer's intention for a cast is clear from the name
+* **Correctness**: suspicious casts via `as` can be reduced or eliminated altogether
+* **Performance**: in release builds, cove's casts generally compile down to the same
 assembly as manual implementations
-* **independence**: no required dependencies and the only optional dependency is `std`
+* **Independence**: no required dependencies and the only optional dependency is `std`
 
 ## Quick Usage
 ```rust
@@ -71,10 +71,13 @@ assert_eq!(31u64.cast::<usize>().lossless(), 31usize);
 Cove supports one feature, `std`, which is included in the default features. Enabling this
 feature (or rather, failing to disable it) enables support for the Rust standard library.
 If this is disabled, cove depends only on the Rust core library.
-Enabling `std` causes cove's error types to implement [`std::error::Error`]; otherwise they do
-not, as at the time of writing [`core::error::Error`] is unstable. In addition, some cast
-implementations are controlled by this feature, as the rust standard library allows for
-optimizations via intrinsics not available in stable [`core`].
+Enabling `std` causes cove's error types to implement 
+[`std::error::Error`](https://doc.rust-lang.org/std/error/trait.Error.html); otherwise they do not, 
+as at the time of writing 
+[`core::error::Error`](https://doc.rust-lang.org/core/error/trait.Error.html) is unstable. In 
+addition, some cast implementations are controlled by this feature, as the rust standard library 
+allows for optimizations via intrinsics not available in stable 
+[`core`](https://doc.rust-lang.org/core/index.html).
 
 ## Links
 * Read about how to use cove's [`casts`](https://docs.rs/cove/latest/cove/casts/index.html)
